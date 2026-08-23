@@ -41,11 +41,3 @@ export interface ProcessedDocument {
   improvements: ImprovementSuggestion[];
   insights: DocumentInsights;
 }
-
-export interface ChatMessage {
-  id: string;
-  sender: 'user' | 'ai';
-  text: string;
-  timestamp: string;
-  source?: string;
-}

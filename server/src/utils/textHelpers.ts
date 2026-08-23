@@ -22,6 +22,8 @@ export type QueryIntent =
   | 'COMPANY_ORGANIZATION'
   | 'FINANCIAL_INVOICE'
   | 'GENERAL_PURPOSE'
+  | 'DOCUMENT_EVALUATION'
+  | 'ASSIGNMENT_ASSESSMENT'
   | 'EVIDENCE_SOURCE'
   | 'EXPLANATION'
   | 'UNSUPPORTED';
@@ -36,8 +38,7 @@ export interface StructuredChunk {
 
 export function calculateWordCount(text: string): number {
   if (!text || !text.trim()) return 0;
-  const words = text.trim().split(/\s+/).filter(w => w.length > 0 && /[a-zA-Z0-9]/.test(w));
-  return words.length;
+  return text.trim().split(/\s+/).filter(Boolean).length;
 }
 
 export function calculateReadingTime(wordCount: number): number {
@@ -178,6 +179,16 @@ export function classifyQueryIntent(question: string): QueryIntent {
     return 'EXPLANATION';
   }
 
+  // Document Evaluation / Feedback Intent ("what do you think", "is it good or bad", "review", "evaluate")
+  if (lower.includes('good or bad') || lower.includes('what do you think') || lower.includes('review') || lower.includes('quality of') || lower.includes('evaluate') || lower.includes('assessment of') || lower.includes('opinion')) {
+    return 'DOCUMENT_EVALUATION';
+  }
+
+  // Assignment / Assessment Intent ("what is the assessment", "what is the assignment", "what is the project", "what is the task")
+  if (lower.includes('assessment') || lower.includes('assignment') || lower.includes('what is the task') || lower.includes('what is the project') || lower.includes('project requirements') || lower.includes('task requirement')) {
+    return 'ASSIGNMENT_ASSESSMENT';
+  }
+
   // Invoice / Financial Intent ("total", "amount due", "subtotal", "invoice #", "bill")
   if (lower.includes('invoice') || lower.includes('amount due') || lower.includes('total due') || lower.includes('subtotal') || lower.includes('billing')) {
     return 'FINANCIAL_INVOICE';
@@ -185,9 +196,6 @@ export function classifyQueryIntent(question: string): QueryIntent {
 
   if (lower.includes('security') || lower.includes('compliance') || lower.includes('sla') || lower.includes('uptime')) {
     return 'SECURITY_COMPLIANCE';
-  }
-  if (lower.includes('name') || lower.includes('candidate name') || lower.includes('applicant name') || lower.includes('who is') || lower.includes("candidate's name") || lower.includes("applicant's name")) {
-    return 'CANDIDATE_NAME';
   }
   if (lower.includes('role') || lower.includes('position') || lower.includes('applying') || lower.includes('job') || lower.includes('internship') || lower.includes('title') || lower.includes('opening') || lower.includes('target role')) {
     return 'ROLE_APPLICATION';
@@ -207,8 +215,15 @@ export function classifyQueryIntent(question: string): QueryIntent {
   if (lower.includes('achievement') || lower.includes('metric') || lower.includes('result') || lower.includes('accomplish') || lower.includes('budget') || lower.includes('cost') || lower.includes('number')) {
     return 'ACHIEVEMENTS_METRICS';
   }
-  if (lower.includes('company') || lower.includes('firm') || lower.includes('organization') || lower.includes('employer') || lower.includes('vendor')) {
+
+  // Company / Organization Intent (evaluated before candidate name to handle "company name" properly)
+  if (lower.includes('company') || lower.includes('firm') || lower.includes('organization') || lower.includes('employer') || lower.includes('vendor') || lower.includes('company name') || lower.includes('organization name') || lower.includes('firm name')) {
     return 'COMPANY_ORGANIZATION';
+  }
+
+  // Candidate / Person Name Intent
+  if (lower.includes('candidate name') || lower.includes('applicant name') || lower.includes("candidate's name") || lower.includes("applicant's name") || lower.includes('who is') || lower === 'name' || lower === 'candidate' || lower === 'applicant' || (lower.includes('name') && !lower.includes('company') && !lower.includes('organization') && !lower.includes('firm') && !lower.includes('project') && !lower.includes('file') && !lower.includes('app'))) {
+    return 'CANDIDATE_NAME';
   }
   if (lower.includes('goal') || lower.includes('purpose') || lower.includes('conclusion') || lower.includes('aim') || lower.includes('objective') || lower.includes('summary')) {
     return 'GENERAL_PURPOSE';
@@ -378,343 +393,22 @@ export function extractDocumentChunks(documentText: string): StructuredChunk[] {
   return chunks;
 }
 
-/**
- * Universal Dynamic Evidence Ranker across the entire active document.
- */
-export function rankDocumentChunks(documentText: string, question: string): { chunk: StructuredChunk; score: number }[] {
-  const chunks = extractDocumentChunks(documentText);
-  if (chunks.length === 0) return [];
-
-  const intent = classifyQueryIntent(question);
-  const lowerQ = question.toLowerCase();
-
-  const stopWords = new Set(['what', 'where', 'when', 'which', 'who', 'how', 'does', 'is', 'are', 'was', 'were', 'the', 'this', 'that', 'these', 'those', 'for', 'and', 'with', 'about', 'mentioned']);
-  const queryTokens = lowerQ.replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 3 && !stopWords.has(w));
-
-  const scored = chunks.map((chunk, idx) => {
-    const lowerText = chunk.text.toLowerCase();
-    const lowerSec = chunk.section.toLowerCase();
-
-    // 1. Keyword Score
-    let keywordMatches = 0;
-    queryTokens.forEach(t => {
-      if (lowerText.includes(t) || lowerSec.includes(t)) keywordMatches++;
-    });
-    const keywordScore = queryTokens.length > 0 ? (keywordMatches / queryTokens.length) * 10 : 0;
-
-    // 2. Semantic Score (phrase matching)
-    let semanticScore = 0;
-    if (lowerText.includes(lowerQ)) semanticScore += 10;
-    queryTokens.forEach(t => {
-      if (chunk.keywords.includes(t)) semanticScore += 2;
-    });
-
-    // 3. Dynamic Intent Alignment Score
-    let sectionScore = 0;
-    let intentScore = 0;
-
-    if (intent === 'CANDIDATE_NAME') {
-      if (chunk.pageNumber === 1 || idx === 0) sectionScore += 15;
-      if (lowerSec.includes('objective') || lowerSec.includes('header') || lowerSec.includes('overview')) intentScore += 15;
-    } else if (intent === 'ROLE_APPLICATION') {
-      if (lowerSec.includes('objective') || lowerSec.includes('header') || lowerSec.includes('overview')) {
-        sectionScore += 15;
-        intentScore += 15;
-      }
-    } else if (intent === 'FINANCIAL_INVOICE' || intent === 'ACHIEVEMENTS_METRICS') {
-      if (lowerSec.includes('financial') || lowerSec.includes('invoice') || lowerText.includes('total') || lowerText.includes('due') || lowerText.includes('$') || lowerText.includes('150,000') || lowerText.includes('99.99')) {
-        sectionScore += 15;
-        intentScore += 15;
-      }
-    } else if (intent === 'SECURITY_COMPLIANCE') {
-      if (lowerText.includes('99.99') || lowerText.includes('security') || lowerText.includes('compliance') || lowerText.includes('sla')) {
-        sectionScore += 15;
-        intentScore += 15;
-      }
-    } else if (intent === 'PROJECTS') {
-      if (lowerSec.includes('project') || lowerSec.includes('portfolio')) {
-        sectionScore = 15;
-        intentScore = 15;
-      }
-    } else if (intent === 'TECHNICAL_SKILLS') {
-      if (lowerSec.includes('skill') || lowerSec.includes('technolog')) {
-        sectionScore = 15;
-        intentScore = 15;
-      }
+export function cleanTrailingHeaders(text: string): string {
+  if (!text) return '';
+  let lines = text.trim().split('\n');
+  while (lines.length > 0) {
+    const lastLine = lines[lines.length - 1].trim();
+    if (!lastLine || /^[A-Z][A-Za-z0-9\s&]+:$/.test(lastLine) || lastLine.startsWith('#')) {
+      lines.pop();
+    } else {
+      break;
     }
-
-    const finalScore = (semanticScore * 0.40) + (keywordScore * 0.30) + (sectionScore * 0.15) + (intentScore * 0.15);
-
-    return { chunk, score: finalScore };
-  });
-
-  scored.sort((a, b) => b.score - a.score);
-  return scored;
+  }
+  return lines.join('\n').trim();
 }
 
 /**
- * Validates that the generated answer is non-empty, contains real requested data, and matches intent.
- */
-export function validateGroundedAnswer(answer: string, question: string, intent: QueryIntent): boolean {
-  if (!answer || !answer.trim()) return false;
-
-  const lower = answer.toLowerCase().trim();
-
-  // 1. Reject non-answer placeholders
-  if (lower.includes('is outlined in the document') || 
-      lower.includes('is mentioned in the document') || 
-      lower.includes('is provided in the document') ||
-      lower.includes('outlined in the document')) {
-    return false;
-  }
-
-  // 2. Reject intent mismatch
-  if (intent === 'CANDIDATE_NAME') {
-    if (lower.includes('primary objective') || lower.includes('document purpose') || lower.includes('work history') || lower.includes('executive overview')) {
-      return false;
-    }
-  }
-
-  if (intent === 'COMPANY_ORGANIZATION') {
-    if (lower.includes('primary objective') || lower.includes('document purpose') || lower.includes('work history')) {
-      return false;
-    }
-  }
-
-  if (intent === 'EVIDENCE_SOURCE') {
-    if (!lower.includes('i found this in') && !lower.includes('relevant text states') && !lower.includes('source:')) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-/**
- * Universal Grounded Answer Generator.
- * Answers dynamically for ANY uploaded document type strictly using active document text.
- * Zero hardcoded fallback assumptions.
- */
-export function findGroundedAnswer(documentText: string, question: string, fileName: string = '', history?: any[]): string {
-  const cleanedText = cleanExtractedText(documentText);
-  if (!cleanedText || isInsufficientText(cleanedText)) {
-    return "I couldn't find that information in the uploaded document.";
-  }
-
-  const intent = classifyQueryIntent(question);
-  if (intent === 'UNSUPPORTED') {
-    return "I couldn't find that information in the uploaded document.";
-  }
-
-  // Multi-Document Comparison Exception Check
-  const lowerQ = question.toLowerCase().trim();
-  if (lowerQ.includes('compare these') || lowerQ.includes('compare both') || lowerQ.includes('difference between documents')) {
-    return "Multi-document comparison requires selecting both active documents. Single-document view evaluates active document content.";
-  }
-
-  // Intent: EVIDENCE_SOURCE ("Where did you find it?")
-  if (intent === 'EVIDENCE_SOURCE') {
-    let prevText = '';
-    if (history && history.length > 0) {
-      for (let i = history.length - 1; i >= 0; i--) {
-        const item = history[i];
-        if (item.role === 'assistant' || item.sender === 'ai') {
-          prevText = item.text || item.content || '';
-          break;
-        }
-      }
-    }
-
-    let keyTarget = '';
-    if (prevText) {
-      const matchComp = prevText.match(/is\s+([A-Z][A-Za-z0-9\s&.,]+?)(?:\.|\n|$)/);
-      if (matchComp && matchComp[1]) keyTarget = matchComp[1].trim();
-      else keyTarget = prevText.substring(0, 50);
-    }
-
-    const ranked = rankDocumentChunks(cleanedText, keyTarget || question);
-
-    if (ranked.length > 0) {
-      const topChunk = ranked[0].chunk;
-      const cleanSnippet = sanitizePrivacyInfo(topChunk.text).split('\n').filter(s => s.trim().length > 15)[0] || topChunk.text.substring(0, 100);
-      const locationLabel = topChunk.pageNumber ? `Page ${topChunk.pageNumber} · ${topChunk.section} section` : `the document's ${topChunk.section} section`;
-      
-      return `I found this in ${locationLabel}.\n\nEvidence: "${cleanSnippet.trim()}"`;
-    }
-
-    return "I found this in the extracted document text, but the parser did not provide a reliable page/section location.";
-  }
-
-  // Intent: EXPLANATION ("Can you explain that?")
-  if (intent === 'EXPLANATION') {
-    const ranked = rankDocumentChunks(cleanedText, question);
-    if (ranked.length > 0) {
-      const topChunk = ranked[0].chunk;
-      return `Based on the document text in the ${topChunk.section} section: ${sanitizePrivacyInfo(topChunk.text).substring(0, 250)}`;
-    }
-  }
-
-  // Explicit negative constraints check against active document
-  const lowerDoc = cleanedText.toLowerCase();
-  if ((lowerQ.includes('salary') || lowerQ.includes('pay')) && !lowerDoc.includes('salary') && !lowerDoc.includes('pay')) {
-    return "I couldn't find salary information in the uploaded document.";
-  }
-  if (lowerQ.includes('gpa') && !lowerDoc.includes('gpa')) {
-    return "I couldn't find GPA information in the uploaded document.";
-  }
-  if (lowerQ.includes('france') && !lowerDoc.includes('france')) {
-    return "I couldn't find that information in the uploaded document.";
-  }
-
-  // Intent: SECURITY_COMPLIANCE
-  if (intent === 'SECURITY_COMPLIANCE') {
-    if (lowerDoc.includes('99.99')) {
-      return "Security and compliance requirements mentioned: 99.99% API uptime SLA requirement and project budget allocations.";
-    }
-    const secMatch = cleanedText.match(/(?:security|compliance|sla|uptime|encryption)[^\.\n]*[\.\n]/i);
-    if (secMatch && secMatch[0]) {
-      return `Security and compliance: ${secMatch[0].trim()}`;
-    }
-    return "I couldn't find security or compliance information in the uploaded document.";
-  }
-
-  // Intent: ACHIEVEMENTS_METRICS
-  if (intent === 'ACHIEVEMENTS_METRICS') {
-    const metricMatch = cleanedText.match(/(?:\$[0-9,]+|[0-9]{1,3}\.[0-9]{1,2}%|[0-9]+\s*(?:users|rows|percent|budget|total))/i);
-    if (metricMatch && metricMatch[0]) {
-      return `Key metric mentioned in the document: ${metricMatch[0]}.`;
-    }
-  }
-
-  // Intent: FINANCIAL_INVOICE (Total, Amount Due, Line Items)
-  if (intent === 'FINANCIAL_INVOICE') {
-    const totalMatch = cleanedText.match(/(?:total|amount due|balance due|subtotal):\s*\$?([0-9,]+\.[0-9]{2})/i);
-    if (totalMatch && totalMatch[1]) {
-      return `The invoice total amount due is $${totalMatch[1]}.`;
-    }
-    if (!lowerDoc.includes('invoice') && !lowerDoc.includes('total') && !lowerDoc.includes('due') && !lowerDoc.includes('$')) {
-      return "I couldn't find invoice information in the uploaded document.";
-    }
-  }
-
-  // Rank ALL document chunks across active document
-  const ranked = rankDocumentChunks(cleanedText, question);
-  const category = classifyDocument(cleanedText, fileName);
-
-  // Intent: CANDIDATE_NAME
-  if (intent === 'CANDIDATE_NAME') {
-    const lines = cleanedText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-    
-    const labelMatch = cleanedText.match(/(?:name|applicant|candidate|from):\s*([A-Z][A-Za-z\s.]{2,40})/i);
-    if (labelMatch && labelMatch[1] && labelMatch[1].trim().length > 2) {
-      const name = labelMatch[1].trim();
-      return `The candidate's name is ${name}.`;
-    }
-
-    for (let i = 0; i < Math.min(5, lines.length); i++) {
-      const line = lines[i];
-      if (/^[A-Z\s.]{3,50}$/.test(line) && !line.includes('CURRICULUM') && !line.includes('RESUME') && !line.includes('COVER LETTER') && !line.includes('SUBJECT')) {
-        const titleCasedName = line.toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
-        return `The candidate's name is ${titleCasedName}.`;
-      }
-    }
-
-    const sincerelyMatch = cleanedText.match(/(?:sincerely|regards|thanks|best),\s*([A-Z][A-Za-z\s.]{2,40})/i);
-    if (sincerelyMatch && sincerelyMatch[1]) {
-      return `The candidate's name is ${sincerelyMatch[1].trim()}.`;
-    }
-
-    return "I couldn't identify the candidate's name from the document content.";
-  }
-
-  // Intent: TECHNICAL_SKILLS
-  if (intent === 'TECHNICAL_SKILLS') {
-    const skillsChunk = ranked.find(r => r.chunk.section.toLowerCase().includes('skill'))?.chunk;
-    const textToUse = skillsChunk ? skillsChunk.text : (ranked[0]?.chunk.text || cleanedText);
-
-    const rawSplits = textToUse.split(/[,\n•;-]/);
-    const cleanSkills = filterCleanTechnicalSkills(rawSplits);
-
-    if (cleanSkills.length === 0) {
-      return "I couldn't find that information in the uploaded document.";
-    }
-
-    return `Technical skills mentioned include:\n- ${cleanSkills.join('\n- ')}`;
-  }
-
-  // Intent: ROLE_APPLICATION
-  if (intent === 'ROLE_APPLICATION') {
-    const explicitRegex = /(?:applying for|application for|applying to|position of|role of|interest in the|candidate for)\s+(?:the\s+)?([A-Za-z0-9\s/-]+?)(?:\s+role|\s+position|\s+at|\.|,|\n|$)/i;
-    const match = cleanedText.match(explicitRegex);
-
-    if (match && match[1] && match[1].trim().length > 2) {
-      const rawExtractedRole = match[1].trim().replace(/\s+/g, ' ');
-      if (rawExtractedRole.length < 50) {
-        const formattedRole = rawExtractedRole.replace(/^the\s+/i, '');
-        return `The candidate is applying for the ${formattedRole} role.`;
-      }
-    }
-
-    const headerMatch = cleanedText.match(/(?:subject|role|position|re):\s*([A-Za-z0-9\s/-]+?)(?:\n|$)/i);
-    if (headerMatch && headerMatch[1] && headerMatch[1].trim().length > 3) {
-      const rawHeader = headerMatch[1].trim();
-      if (rawHeader.length < 50 && !rawHeader.toLowerCase().includes('technical assessment')) {
-        return `The candidate is applying for the ${rawHeader} role.`;
-      }
-    }
-
-    const possibleRoles: string[] = [];
-    if (lowerDoc.includes('intern analyst')) possibleRoles.push('Intern Analyst');
-    if (lowerDoc.includes('software engineer') || lowerDoc.includes('software engineering')) possibleRoles.push('Software Engineer');
-    if (lowerDoc.includes('sdet')) possibleRoles.push('SDET');
-    if (lowerDoc.includes('data analyst')) possibleRoles.push('Data Analyst');
-    if (lowerDoc.includes('quantitative') || lowerDoc.includes('data science')) possibleRoles.push('Quantitative Data Science and Analytics');
-
-    if (possibleRoles.length > 1) {
-      return "The document mentions multiple roles, and I can't determine a single target position with confidence.";
-    } else if (possibleRoles.length === 1) {
-      return `The candidate is applying for the ${possibleRoles[0]} role.`;
-    }
-
-    return "The target role is not explicitly specified in the document.";
-  }
-
-  // Intent: COMPANY_ORGANIZATION
-  if (intent === 'COMPANY_ORGANIZATION') {
-    const compMatch = cleanedText.match(/(?:at|for|issued by|company|to|firm|organization)\s+([A-Z][A-Za-z0-9\s&.,]+?(?:Inc|Corp|LLC|Network|Services|Technologies|Ltd)?)(?:\.|,|\n|$)/);
-    if (compMatch && compMatch[1]) {
-      return `The company mentioned is ${compMatch[1].trim()}.`;
-    }
-    return "The document does not clearly mention a company name.";
-  }
-
-  // Intent: GENERAL_PURPOSE
-  if (intent === 'GENERAL_PURPOSE') {
-    const topChunk = ranked.length > 0 ? ranked[0].chunk : extractDocumentChunks(cleanedText)[0];
-    if (topChunk && topChunk.text) {
-      const cleanText = sanitizePrivacyInfo(topChunk.text);
-      const cleanSentences = cleanText.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 10).slice(0, 2).join(' ');
-      if (cleanSentences && cleanSentences.length > 15) {
-        return cleanSentences;
-      }
-      return cleanText.substring(0, 250);
-    }
-  }
-
-  // General Intent Fallback via Top Ranked Chunk
-  if (ranked.length > 0 && ranked[0].score > 0.05) {
-    const topChunkText = sanitizePrivacyInfo(ranked[0].chunk.text);
-    const cleanSentences = topChunkText.split(/(?<=[.帖!?])\s+/).filter(s => s.trim().length > 10).slice(0, 2).join(' ');
-    if (cleanSentences && cleanSentences.length > 15) {
-      return cleanSentences;
-    }
-  }
-
-  return "I couldn't find that information in the uploaded document.";
-}
-
-/**
- * Strictly enforces summary word count targets with controlled refinement loop:
+ * Enforces word count boundaries for summaries:
  * Short: 80 - 120 words
  * Medium: 150 - 250 words
  * Long: 300 - 450 words
@@ -730,7 +424,7 @@ export function enforceWordCount(text: string, minWords: number, maxWords: numbe
 
     for (const block of lines) {
       const blockWords = calculateWordCount(block);
-      if (count + blockWords <= maxWords + 8) {
+      if (count + blockWords <= maxWords) {
         trimmed += (trimmed ? '\n\n' : '') + block;
         count += blockWords;
       } else {
@@ -738,7 +432,7 @@ export function enforceWordCount(text: string, minWords: number, maxWords: numbe
         let blockAcc = '';
         for (const s of sentences) {
           const sCount = calculateWordCount(s);
-          if (count + sCount <= maxWords + 3) {
+          if (count + sCount <= maxWords) {
             blockAcc += (blockAcc ? ' ' : '') + s;
             count += sCount;
           } else {
@@ -751,7 +445,7 @@ export function enforceWordCount(text: string, minWords: number, maxWords: numbe
         break;
       }
     }
-    cleaned = trimmed || cleaned;
+    cleaned = cleanTrailingHeaders(trimmed) || cleaned;
   }
 
   words = calculateWordCount(cleaned);
@@ -763,7 +457,7 @@ export function enforceWordCount(text: string, minWords: number, maxWords: numbe
     ];
 
     let eIdx = 0;
-    while (calculateWordCount(cleaned) < minWords) {
+    while (calculateWordCount(cleaned) < minWords && eIdx < expansions.length * 2) {
       cleaned += expansions[eIdx % expansions.length];
       eIdx++;
     }
@@ -781,11 +475,11 @@ export function enforceWordCount(text: string, minWords: number, maxWords: numbe
           break;
         }
       }
-      cleaned = trimmed || cleaned;
+      cleaned = cleanTrailingHeaders(trimmed) || cleaned;
     }
   }
 
-  return cleaned;
+  return cleanTrailingHeaders(cleaned);
 }
 
 /**
@@ -817,7 +511,7 @@ export function generateHeuristicAnalysis(text: string, fileName: string): {
         { category: 'General', point: 'Insufficient readable text detected in uploaded file.' }
       ],
       improvements: [
-        { category: 'Clarity', suggestion: 'Provide a clearer image or document with high-contrast, readable text. Brief Reason: High resolution images improve OCR text extraction accuracy.' }
+        { category: 'Clarity', suggestion: 'Consider providing a clearer document or image with higher text contrast.' }
       ],
       insights: {
         sentiment: 'Neutral',
@@ -840,31 +534,107 @@ export function generateHeuristicAnalysis(text: string, fileName: string): {
   const rawMedium = `Overview:\nThis document (${title}) represents a ${category.toLowerCase()} detailing primary specifications, operational objectives, and structured content.\n\nCore Focus:\n${firstP}\n\nKey Details & Content Breakdown:\n${secondP || firstP}`;
   const rawLong = `Executive Overview:\nThis document (${title}) represents a ${category.toLowerCase()} detailing primary specifications, operational objectives, and structured content.\n\nCore Focus & Analytical Summary:\n${firstP}\n\nDetailed Section Analysis:\n${secondP || firstP}\n\nStrategic Governance & Conclusion:\n${thirdP || secondP || firstP}`;
 
-  const keyPoints: KeyPoint[] = [];
+  const sentences = sanitizePrivacyInfo(cleaned)
+    .split(/(?<=[.!?])\s+|\n+/)
+    .map(s => s.trim())
+    .filter(s => s.length > 15 && 
+      !s.toLowerCase().startsWith('dear') && 
+      !s.toLowerCase().startsWith('sincerely') && 
+      !s.toLowerCase().startsWith('subject:')
+    );
 
-  // Populate dynamic key points from actual extracted document chunks
-  chunks.slice(0, 5).forEach((c, idx) => {
-    const snippet = sanitizePrivacyInfo(c.text).split('\n').filter(s => s.trim().length > 10)[0] || c.text.substring(0, 80);
-    keyPoints.push({
-      category: c.section as any || 'General',
-      point: snippet.trim()
-    });
-  });
+  const keyPoints: KeyPoint[] = [];
+  const seenPoints = new Set<string>();
+
+  for (const s of sentences) {
+    if (keyPoints.length >= 6) break;
+    const lowerS = s.toLowerCase();
+
+    let category: KeyPoint['category'] = 'General';
+    if (lowerS.includes('goal') || lowerS.includes('objective') || lowerS.includes('aim') || lowerS.includes('apply') || lowerS.includes('purpose')) {
+      category = 'Objective';
+    } else if (lowerS.includes('total') || lowerS.includes('$') || lowerS.includes('%') || lowerS.includes('budget') || lowerS.includes('uptime') || lowerS.includes('latency') || /\b\d+\b/.test(lowerS)) {
+      category = 'Metric';
+    } else if (lowerS.includes('require') || lowerS.includes('must') || lowerS.includes('shall') || lowerS.includes('compliance') || lowerS.includes('deadline') || lowerS.includes('sla')) {
+      category = 'Requirement';
+    } else if (lowerS.includes('conclude') || lowerS.includes('summary') || lowerS.includes('overall') || lowerS.includes('target')) {
+      category = 'Conclusion';
+    } else if (lowerS.includes('skill') || lowerS.includes('experience') || lowerS.includes('python') || lowerS.includes('analysis') || lowerS.includes('develop')) {
+      category = 'Finding';
+    }
+
+    const formattedPoint = s.length > 160 ? s.substring(0, 155).replace(/\s+\S*$/, '') + '.' : s;
+
+    const norm = formattedPoint.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (!seenPoints.has(norm)) {
+      seenPoints.add(norm);
+      keyPoints.push({ category, point: formattedPoint });
+    }
+  }
 
   if (keyPoints.length === 0) {
     keyPoints.push({ category: 'General', point: `Document ${title} processed successfully with ${totalWords} total words.` });
   }
 
-  const improvements: ImprovementSuggestion[] = [
-    {
-      category: 'Clarity',
-      suggestion: 'Incorporate clear section headings and bulleted summaries for rapid document navigation. Brief Reason: Structured formatting improves readability and scanning efficiency.'
-    },
-    {
-      category: 'Actionability',
-      suggestion: 'Include concrete quantitative metrics, dates, and verifiable reference markers throughout the text. Brief Reason: Numerical proof enhances evidence grounding for document reviewers.'
-    }
-  ];
+  const improvements: ImprovementSuggestion[] = [];
+
+  if (category === 'Cover Letter' || category === 'Resume / CV') {
+    improvements.push(
+      {
+        category: 'Actionability',
+        suggestion: 'Consider adding measurable outcomes to project descriptions so the impact is easier to evaluate.'
+      },
+      {
+        category: 'Structure',
+        suggestion: 'Consider highlighting technical skills and key analytical tools more prominently near the top of the document.'
+      },
+      {
+        category: 'Clarity',
+        suggestion: 'It may help to make the specific impact and key deliverables of each project more explicit.'
+      }
+    );
+  } else if (category === 'Proposal' || category === 'Technical Document') {
+    improvements.push(
+      {
+        category: 'Structure',
+        suggestion: 'Consider clarifying the implementation timeline and key project milestone dates.'
+      },
+      {
+        category: 'Actionability',
+        suggestion: 'Consider adding measurable success criteria to evaluate operational outcomes.'
+      },
+      {
+        category: 'Missing Info',
+        suggestion: 'It may help to provide more detail regarding expected deliverables and resource allocations.'
+      }
+    );
+  } else if (category === 'Invoice') {
+    improvements.push(
+      {
+        category: 'Actionability',
+        suggestion: 'Consider verifying the billing and payment details before processing final settlement.'
+      },
+      {
+        category: 'Clarity',
+        suggestion: 'Consider checking whether all line items have supporting documentation.'
+      }
+    );
+  } else {
+    improvements.push(
+      {
+        category: 'Structure',
+        suggestion: 'Consider incorporating clear section headings to streamline document navigation.'
+      },
+      {
+        category: 'Readability',
+        suggestion: 'Consider adding bulleted summaries to highlight key takeaways for reviewers.'
+      },
+      {
+        category: 'Clarity',
+        suggestion: 'It may help to quantify key points with verifiable reference metrics.'
+      }
+    );
+  }
 
   const shortSummary = enforceWordCount(rawShort, 80, 120);
   const mediumSummary = enforceWordCount(rawMedium, 150, 250);
@@ -878,7 +648,7 @@ export function generateHeuristicAnalysis(text: string, fileName: string): {
       long: longSummary
     },
     keyPoints: keyPoints.slice(0, 6),
-    improvements: improvements.slice(0, 4),
+    improvements: improvements.slice(0, 5),
     insights: {
       sentiment: 'Formal',
       domain: category,

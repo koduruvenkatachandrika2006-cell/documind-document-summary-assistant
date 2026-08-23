@@ -1,10 +1,9 @@
 import React from 'react';
 import { ProcessedDocument } from '../types/index.js';
-import { FileText, Clock, FileCheck, MessageSquareText, Download, Copy, Check, RefreshCw, Zap, Layers, BookOpen } from 'lucide-react';
+import { FileCheck, Download, Copy, Check, RefreshCw, Zap } from 'lucide-react';
 
 interface DashboardHeaderProps {
   document: ProcessedDocument;
-  onOpenChat: () => void;
   onReset: () => void;
   onCopySummary: () => void;
   onDownloadSummary: () => void;
@@ -13,7 +12,6 @@ interface DashboardHeaderProps {
 
 export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   document,
-  onOpenChat,
   onReset,
   onCopySummary,
   onDownloadSummary,
@@ -75,19 +73,10 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
         {/* Action Controls */}
         <div className="flex flex-wrap items-center gap-2.5 shrink-0 self-start lg:self-center">
           
-          {/* Ask This Document Button */}
-          <button
-            onClick={onOpenChat}
-            className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs shadow-md transition-all flex items-center gap-1.5"
-          >
-            <MessageSquareText className="w-4 h-4" />
-            Ask This Document
-          </button>
-
           {/* Copy Summary */}
           <button
             onClick={onCopySummary}
-            className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition-colors flex items-center gap-1.5"
+            className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition-colors flex items-center gap-1.5"
           >
             {isCopied ? (
               <>
@@ -105,7 +94,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
           {/* Download Summary */}
           <button
             onClick={onDownloadSummary}
-            className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition-colors flex items-center gap-1.5"
+            className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition-colors flex items-center gap-1.5"
           >
             <Download className="w-3.5 h-3.5 text-slate-400" />
             <span>Download</span>

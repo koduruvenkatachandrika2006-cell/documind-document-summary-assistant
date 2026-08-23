@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { z } from 'zod';
 import { StructuredSummaries, KeyPoint, ImprovementSuggestion, DocumentInsights } from '../types/index.js';
-import { generateHeuristicAnalysis, isInsufficientText, enforceWordCount, sanitizePrivacyInfo, classifyDocument, dedupeSentences, findGroundedAnswer, rankDocumentChunks, filterCleanTechnicalSkills, classifyQueryIntent, validateGroundedAnswer } from '../utils/textHelpers.js';
+import { generateHeuristicAnalysis, isInsufficientText, enforceWordCount, sanitizePrivacyInfo, classifyDocument, dedupeSentences } from '../utils/textHelpers.js';
 
 // Zod Schema for strict JSON response validation from LLM
 const AIAnalysisSchema = z.object({
@@ -68,8 +68,8 @@ DOCUMENT-AWARE SUMMARIZATION RULES:
    - For COVER LETTERS: Prioritize applicant profile, target role/company, quantitative skills/analytics background, key projects, and stated motivation. Do NOT make phone numbers, email addresses, or personal contact info the focus of the summary.
    - For TECHNICAL DOCUMENTS: Prioritize purpose, architecture, technologies, key functions, and execution scope.
    - For INVOICES: Prioritize vendor, customer, line-item totals, tax, and settlement terms.
-3. Key Points: Array of 4-8 genuinely distinct points directly supported by the text. NEVER hallucinate metrics.
-4. Improvements: Array of 3-5 document-specific recommendations. Each recommendation must include a specific suggestion AND a brief reason why it would improve the document.
+3. Key Points: Array of 3-6 concise, highly scannable points directly supported by the text (EXACTLY 1-2 sentences maximum per point). Focus on core objectives, findings, metrics, dates, requirements, and conclusions without long paragraphs.
+4. Improvements: Array of 3-5 practical, document-specific recommendations. Use language such as "Consider...", "You could...", "It may help to...", or "Consider clarifying...". Do NOT invent facts or present assumptions as facts. Each suggestion should normally be 1 sentence.
 5. Do NOT unnecessarily repeat email addresses or phone numbers in summaries, key points, or improvement suggestions.
 
 WORD COUNT TARGET BOUNDARIES (STRICT REQUIREMENT):
@@ -85,8 +85,8 @@ OUTPUT MUST BE VALID JSON matching this schema:
     "medium": "Overview:\\n...\\n\\nCore Focus:\\n...\\n\\nNotable Details:\\n...",
     "long": "Executive Overview:\\n...\\n\\nDetailed Analysis:\\n...\\n\\nConclusion:\\n..."
   },
-  "keyPoints": [ { "category": "Objective|Finding|Requirement|Metric|Conclusion|General|Technical|Action", "point": "..." } ],
-  "improvements": [ { "category": "Clarity|Structure|Readability|Actionability|Repetition|Missing Info", "suggestion": "Specific recommendation. Brief Reason: why it improves the document." } ],
+  "keyPoints": [ { "category": "Objective|Finding|Requirement|Metric|Conclusion|General|Technical|Action", "point": "Concise 1-2 sentence key takeaway." } ],
+  "improvements": [ { "category": "Clarity|Structure|Readability|Actionability|Repetition|Missing Info", "suggestion": "Consider..." } ],
   "insights": { "sentiment": "Neutral|Formal|Technical|Persuasive|Urgent", "domain": "${category}", "complexity": "Low|Medium|High" }
 }`;
 
@@ -103,10 +103,17 @@ OUTPUT MUST BE VALID JSON matching this schema:
         validated.summary.medium = enforceWordCount(dedupeSentences(validated.summary.medium), 150, 250);
         validated.summary.long = enforceWordCount(dedupeSentences(validated.summary.long), 300, 450);
 
-        validated.keyPoints = validated.keyPoints.map(kp => ({
-          ...kp,
-          point: sanitizePrivacyInfo(kp.point)
-        }));
+        validated.keyPoints = validated.keyPoints.slice(0, 6).map(kp => {
+          let cleanPoint = sanitizePrivacyInfo(kp.point).trim();
+          const sentences = cleanPoint.split(/(?<=[.!?])\s+/);
+          if (sentences.length > 2) {
+            cleanPoint = sentences.slice(0, 2).join(' ');
+          }
+          return {
+            ...kp,
+            point: cleanPoint
+          };
+        });
 
         validated.improvements = validated.improvements.map(imp => ({
           ...imp,
@@ -122,70 +129,6 @@ OUTPUT MUST BE VALID JSON matching this schema:
     }
 
     return generateHeuristicAnalysis(text, fileName);
-  }
-
-  /**
-   * Answers a specific question about the document text ("Ask This Document" feature).
-   * Supports intent-aligned evidence citations and source locations.
-   */
-  public async answerQuestion(documentText: string, question: string, fileName: string = '', history: any[] = []): Promise<string> {
-    const apiKey = process.env.GEMINI_API_KEY;
-    const intent = classifyQueryIntent(question);
-
-    if (this.aiClient || (apiKey && apiKey.trim() !== '' && apiKey !== 'your_gemini_api_key_here')) {
-      try {
-        const client = this.aiClient || new GoogleGenerativeAI(apiKey!);
-        const model = client.getGenerativeModel({ model: process.env.AI_MODEL || 'gemini-1.5-flash' });
-        
-        const rankedChunks = rankDocumentChunks(documentText, question);
-        const topContext = rankedChunks.slice(0, 3).map(r => r.chunk.text).join('\n\n') || documentText.substring(0, 15000);
-
-        const prompt = `You are DocuMind's grounded document Q&A assistant.
-Your task is to extract and state the direct answer to the user's question using ONLY the supplied document context.
-
-CRITICAL INTENT-ALIGNED RULES:
-1. Answer the question directly in 1 concise sentence (or a clean bulleted list for skills/projects).
-2. EXTRACT THE EXACT FACT / ENTITY stated in the CURRENT document. Do NOT copy, reproduce, or dump source paragraphs.
-3. For "Where did you find it?" or source location queries: State "I found this in Page [X] · [Section] section. The relevant text states: '[short snippet]'". Do NOT repeat the previous answer entity alone.
-4. For candidate name questions ("What is the candidate's name?"): Return "The candidate's name is [Name]." If absent, reply "I couldn't identify the candidate's name from the document content."
-5. For company questions ("What company is mentioned?"): Return "The company mentioned is [Company Name]." If absent, reply "The document does not clearly mention a company name."
-6. For role questions ("What role is the candidate applying for?"): Return "The candidate is applying for the [Role] role." If absent, reply "The target role is not explicitly specified in the document."
-7. NEVER assume or infer information from other documents, sample documents, or outside knowledge.
-8. If the document does not contain enough information, reply EXACTLY: "I couldn't find that information in the uploaded document."
-9. Return ONLY the final clean, direct answer string.
-
-USER INTENT: ${intent}
-Document Filename: ${fileName}
-DOCUMENT CONTEXT:
-"""
-${topContext}
-"""
-
-USER QUESTION: ${question}`;
-
-        const response = await model.generateContent(prompt);
-        let ans = (response.response.text() || '').trim();
-
-        // Clean out any accidental preamble prefixes or quote wrappers
-        ans = ans.replace(/^based on the (document|context|text)[:\s]*/i, '').trim();
-        ans = ans.replace(/^(the candidate is applying for the position described|the position described)[:\s]*/i, 'The candidate is applying for ').trim();
-
-        if (question.toLowerCase().includes('skill') || question.toLowerCase().includes('technolog')) {
-          const rawLines = ans.split('\n');
-          const cleanSkills = filterCleanTechnicalSkills(rawLines);
-          return `Technical skills mentioned include:\n- ${cleanSkills.join('\n- ')}`;
-        }
-
-        const sanitized = sanitizePrivacyInfo(ans);
-        if (validateGroundedAnswer(sanitized, question, intent)) {
-          return sanitized;
-        }
-      } catch (error: any) {
-        console.warn(`[AIService] Q&A API call failed: ${error.message}`);
-      }
-    }
-
-    return findGroundedAnswer(documentText, question, fileName, history);
   }
 }
 

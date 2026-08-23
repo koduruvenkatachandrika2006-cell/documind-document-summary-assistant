@@ -25,6 +25,44 @@ export class ApiService {
   }
 
   /**
+   * Extract text and metadata from document file (Section 12 API Design)
+   */
+  public async extractText(file: File): Promise<{ text: string; metadata: any }> {
+    const formData = new FormData();
+    formData.append('document', file);
+
+    const response = await fetch(`${this.baseUrl}/extract`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || 'Failed to extract text from document.');
+    }
+
+    return { text: result.text, metadata: result.metadata };
+  }
+
+  /**
+   * Summarize extracted text at a specified summary length (Section 12 API Design)
+   */
+  public async summarizeText(text: string, length: 'short' | 'medium' | 'long' = 'medium', fileName?: string): Promise<any> {
+    const response = await fetch(`${this.baseUrl}/summarize`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, length, fileName }),
+    });
+
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || 'Failed to generate summary.');
+    }
+
+    return result;
+  }
+
+  /**
    * Fetches stored document by ID for refresh persistence & direct URL routing.
    */
   public async fetchDocumentById(id: string): Promise<ProcessedDocument | null> {
@@ -53,39 +91,6 @@ export class ApiService {
     } catch (e) {
       console.warn('[ApiService] Failed to sync document store.');
     }
-  }
-
-  /**
-   * Sends user question regarding the document text to backend Q&A endpoint.
-   */
-  public async askQuestion(
-    documentId: string,
-    question: string,
-    documentText?: string,
-    history?: any[]
-  ): Promise<{ answer: string; source?: string }> {
-    const formattedHistory = history
-      ? history.map(m => ({ role: m.sender === 'user' ? 'user' : 'assistant', text: m.text }))
-      : [];
-
-    const response = await fetch(`${this.baseUrl}/chat`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ documentId, question, documentText, history: formattedHistory }),
-    });
-
-    const result = await response.json();
-
-    if (!response.ok || !result.success) {
-      throw new Error(result.error || 'Failed to generate answer to your question.');
-    }
-
-    return {
-      answer: result.answer,
-      source: result.source
-    };
   }
 }
 

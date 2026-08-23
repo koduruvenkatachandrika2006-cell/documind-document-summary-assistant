@@ -81,7 +81,7 @@ export const SummaryCard: React.FC<SummaryCardProps> = ({ summaries, onCopy, onD
           </div>
           <div>
             <h2 className="font-display font-bold text-lg text-slate-100">Summary</h2>
-            <p className="text-xs text-slate-400">Select summary mode to adjust detail level</p>
+            <p className="text-xs font-medium text-indigo-300">How detailed should the summary be?</p>
           </div>
         </div>
 

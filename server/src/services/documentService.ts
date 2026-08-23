@@ -47,9 +47,9 @@ export class DocumentService {
   }
 
   /**
-   * Main entry point for document processing & AI analysis pipeline.
+   * Extracts text and calculates metadata from document.
    */
-  public async processDocument(file: Express.Multer.File): Promise<ProcessedDocument> {
+  public async extractDocumentText(file: Express.Multer.File) {
     const startTime = Date.now();
     this.validateFile(file);
 
@@ -93,7 +93,25 @@ export class DocumentService {
     const characterCount = extractedText.length;
     const estimatedReadingTimeMinutes = calculateReadingTime(wordCount);
 
-    const aiAnalysis = await aiService.analyzeDocument(extractedText, file.originalname);
+    return {
+      extractedText,
+      pageCount,
+      wordCount,
+      characterCount,
+      estimatedReadingTimeMinutes,
+      extractionMethod,
+      documentType
+    };
+  }
+
+  /**
+   * Main entry point for document processing & AI analysis pipeline.
+   */
+  public async processDocument(file: Express.Multer.File): Promise<ProcessedDocument> {
+    const startTime = Date.now();
+    const extracted = await this.extractDocumentText(file);
+
+    const aiAnalysis = await aiService.analyzeDocument(extracted.extractedText, file.originalname);
     const processingTimeMs = Date.now() - startTime;
 
     const processedDoc: ProcessedDocument = {
@@ -101,13 +119,13 @@ export class DocumentService {
       fileName: file.originalname,
       fileSize: file.size,
       mimeType: file.mimetype,
-      documentType,
-      extractedText,
-      pageCount,
-      wordCount,
-      characterCount,
-      estimatedReadingTimeMinutes,
-      extractionMethod,
+      documentType: extracted.documentType,
+      extractedText: extracted.extractedText,
+      pageCount: extracted.pageCount,
+      wordCount: extracted.wordCount,
+      characterCount: extracted.characterCount,
+      estimatedReadingTimeMinutes: extracted.estimatedReadingTimeMinutes,
+      extractionMethod: extracted.extractionMethod,
       processingTimeMs,
       title: aiAnalysis.title,
       summary: aiAnalysis.summary,

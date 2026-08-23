@@ -14,8 +14,11 @@ export class OcrService {
     let worker;
     try {
       // Initialize Tesseract worker for English language recognition
-      worker = await createWorker('eng');
-      
+      worker = await createWorker('eng', 1, {
+        logger: () => {},
+        errorHandler: () => {}
+      });
+
       const { data } = await worker.recognize(imageBuffer);
       await worker.terminate();
 

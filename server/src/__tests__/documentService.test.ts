@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { documentService } from '../services/documentService.js';
 import { pdfService } from '../services/pdfService.js';
 import { aiService } from '../services/aiService.js';
-import { generateHeuristicAnalysis, calculateWordCount, cleanExtractedText, classifyDocument, enforceWordCount, findGroundedAnswer } from '../utils/textHelpers.js';
+import { generateHeuristicAnalysis, calculateWordCount, cleanExtractedText, classifyDocument, enforceWordCount } from '../utils/textHelpers.js';
 import fs from 'fs';
 import path from 'path';
 
@@ -65,39 +65,20 @@ The applicant emphasizes analytical problem-solving rigor, cross-functional coll
     expect(longWords).toBeLessThanOrEqual(450);
   });
 
-  it('should retrieve grounded answers for relevant Q&A and return not found for unsupported queries', async () => {
+  it('should generate document-specific improvement suggestions starting with polite language', async () => {
     const docText = `Chandrika Cover Letter for Bain Capability Network.
 Application for Quantitative Analytics Position.
+Dear Hiring Manager, I am writing to apply for the position.
 Technical Skills: Machine Learning, Python, Statistical Analysis, Predictive Modeling.
-Project Experience: Conducted exploratory data analysis and built machine learning pipelines.
-Budget and Financial Metrics: Allocated $150,000 project budget with 99.99% API uptime SLA requirement.`;
+Project Experience: Conducted exploratory data analysis and built machine learning pipelines.`;
 
-    // Test 1: Primary goal / conclusion
-    const ans1 = await aiService.answerQuestion(docText, "What is the primary goal or conclusion?");
-    expect(ans1).not.toContain("couldn't find");
-
-    // Test 2: Key objectives
-    const ans2 = await aiService.answerQuestion(docText, "What are the key objectives?");
-    expect(ans2).not.toContain("couldn't find");
-
-    // Test 3: Technologies
-    const ans3 = await aiService.answerQuestion(docText, "What technologies or technical areas are mentioned?");
-    expect(ans3).not.toContain("couldn't find");
-    expect(ans3.toLowerCase()).toContain("machine learning");
-
-    // Test 4: Security / Compliance
-    const ans4 = await aiService.answerQuestion(docText, "What security or compliance requirements are mentioned?");
-    expect(ans4).not.toContain("couldn't find");
-    expect(ans4.toLowerCase()).toContain("99.99%");
-
-    // Test 5: Numbers or metrics
-    const ans5 = await aiService.answerQuestion(docText, "What are the important numbers or metrics?");
-    expect(ans5).not.toContain("couldn't find");
-    expect(ans5.toLowerCase()).toContain("150,000");
-
-    // Test 6: Unsupported question (Capital of France)
-    const ans6 = await aiService.answerQuestion(docText, "What is the capital of France?");
-    expect(ans6).toContain("couldn't find that information");
+    const res = await aiService.analyzeDocument(docText, 'cover_letter.pdf');
+    expect(res.improvements).toBeDefined();
+    expect(res.improvements.length).toBeGreaterThanOrEqual(2);
+    
+    // Check polite phrasing ("Consider...", "You could...", "It may help to...")
+    const suggestionsText = res.improvements.map(i => i.suggestion).join(' ');
+    expect(suggestionsText.toLowerCase()).toMatch(/consider|could|it may help/);
   });
 
   it('should parse real PDF file buffer successfully', async () => {

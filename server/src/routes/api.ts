@@ -2,7 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 import { documentService } from '../services/documentService.js';
 import { aiService } from '../services/aiService.js';
-import { classifyQueryIntent, validateGroundedAnswer, rankDocumentChunks, sanitizePrivacyInfo } from '../utils/textHelpers.js';
+import { sanitizePrivacyInfo } from '../utils/textHelpers.js';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -58,8 +58,89 @@ apiRouter.post('/documents/store', (req: Request, res: Response) => {
   return res.status(200).json({ success: true });
 });
 
+
 /**
- * Main Upload & Document Processing Endpoint
+ * Standalone Text Extraction Endpoint (Section 12 API Design)
+ */
+apiRouter.post('/extract', upload.single('document'), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: 'No document file received. Please attach a PDF or image file.'
+      });
+    }
+
+    const extracted = await documentService.extractDocumentText(req.file);
+
+    return res.status(200).json({
+      success: true,
+      text: extracted.extractedText,
+      metadata: {
+        fileName: req.file.originalname,
+        fileSize: req.file.size,
+        mimeType: req.file.mimetype,
+        pageCount: extracted.pageCount,
+        sourceType: extracted.documentType,
+        wordCount: extracted.wordCount,
+        characterCount: extracted.characterCount,
+        estimatedReadingTimeMinutes: extracted.estimatedReadingTimeMinutes,
+        extractionMethod: extracted.extractionMethod
+      }
+    });
+  } catch (error: any) {
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({
+        success: false,
+        error: 'File size limit exceeded. Maximum file size allowed is 10MB.'
+      });
+    }
+    return res.status(400).json({
+      success: false,
+      error: error.message || 'Failed to extract text from document.'
+    });
+  }
+});
+
+/**
+ * Standalone AI Summarization Endpoint (Section 12 API Design)
+ */
+apiRouter.post('/summarize', async (req: Request, res: Response) => {
+  try {
+    const { text, length, fileName } = req.body;
+
+    if (!text || typeof text !== 'string' || !text.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: 'Document text is required to generate a summary.'
+      });
+    }
+
+    const analysis = await aiService.analyzeDocument(text, fileName || 'Document');
+
+    let targetSummary = analysis.summary.medium;
+    if (length === 'short') targetSummary = analysis.summary.short;
+    if (length === 'long') targetSummary = analysis.summary.long;
+
+    return res.status(200).json({
+      success: true,
+      title: analysis.title,
+      summary: analysis.summary,
+      selectedSummary: targetSummary,
+      keyPoints: analysis.keyPoints,
+      improvements: analysis.improvements,
+      insights: analysis.insights
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to generate AI summary.'
+    });
+  }
+});
+
+/**
+ * Combined Upload & Document Processing Endpoint
  */
 apiRouter.post('/upload', upload.single('document'), async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -86,71 +167,6 @@ apiRouter.post('/upload', upload.single('document'), async (req: Request, res: R
     return res.status(400).json({
       success: false,
       error: error.message || 'Failed to process document upload.'
-    });
-  }
-});
-
-/**
- * Interactive Q&A ("Ask This Document") Endpoint
- * Strictly isolated per currentDocumentId with Intent Classification, Source Citation, & Answer Validation.
- */
-apiRouter.post('/chat', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { documentId, documentText, question, history } = req.body;
-
-    let targetText = documentText;
-    let targetFileName = '';
-
-    if (documentId) {
-      const storedDoc = documentService.getDocument(documentId);
-      if (storedDoc) {
-        targetText = storedDoc.extractedText;
-        targetFileName = storedDoc.fileName;
-      }
-    }
-
-    if (!targetText || typeof targetText !== 'string' || !targetText.trim()) {
-      return res.status(400).json({
-        success: false,
-        error: 'Document text or valid document ID is required to answer questions.'
-      });
-    }
-
-    if (!question || typeof question !== 'string' || !question.trim()) {
-      return res.status(400).json({
-        success: false,
-        error: 'Please provide a valid question.'
-      });
-    }
-
-    const intent = classifyQueryIntent(question);
-    let answer = await aiService.answerQuestion(targetText, question, targetFileName, history || []);
-
-    const isValid = validateGroundedAnswer(answer, question, intent);
-    if (!isValid) {
-      console.warn(`[Q&A Debug] Validation failed for question "${question}" (intent: ${intent}, answer: "${answer}"). Falling back to grounded answer.`);
-      answer = aiService.answerQuestion(targetText, question, targetFileName, history || []) as any;
-    }
-
-    // Determine evidence source location for badge citation
-    const ranked = rankDocumentChunks(targetText, question);
-    const topChunk = ranked[0]?.chunk;
-    const sourceLabel = topChunk
-      ? (topChunk.pageNumber ? `Page ${topChunk.pageNumber} · ${topChunk.section}` : `Extracted document text (${topChunk.section})`)
-      : 'Extracted document text';
-
-    console.log(`[Q&A Debug]\n  documentId: ${documentId || 'dynamic'}\n  question: "${question}"\n  intent: ${intent}\n  answer: "${answer}"\n  source: "${sourceLabel}"\n  isValid: ${isValid}`);
-
-    return res.status(200).json({
-      success: true,
-      answer,
-      intent,
-      source: sourceLabel
-    });
-  } catch (error: any) {
-    return res.status(500).json({
-      success: false,
-      error: error.message || 'Failed to generate answer.'
     });
   }
 });

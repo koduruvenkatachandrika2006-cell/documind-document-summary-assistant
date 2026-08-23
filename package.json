@@ -12,6 +12,7 @@
     "build:server": "npx tsc -p server/tsconfig.json",
     "build": "npm run build:client && npm run build:server",
     "start": "node server/dist/index.js",
+    "lint": "npx tsc -p server/tsconfig.json --noEmit",
     "test": "npx vitest run"
   },
   "keywords": [
