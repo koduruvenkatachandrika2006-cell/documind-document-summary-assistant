@@ -200,16 +200,24 @@ export const UploadZone: React.FC<UploadZoneProps> = ({ onFileSelected, onLoadSa
         <div className="flex flex-wrap items-center justify-center gap-2.5">
           <button
             type="button"
-            onClick={() => onLoadSample('proposal')}
-            className="px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-xs font-medium text-slate-300 hover:text-white transition-colors flex items-center gap-1.5"
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              onLoadSample('proposal');
+            }}
+            className="px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-xs font-medium text-slate-300 hover:text-white transition-colors flex items-center gap-1.5 cursor-pointer"
           >
             <FileText className="w-3.5 h-3.5 text-indigo-400" />
             Sample PDF Proposal
           </button>
           <button
             type="button"
-            onClick={() => onLoadSample('receipt')}
-            className="px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-xs font-medium text-slate-300 hover:text-white transition-colors flex items-center gap-1.5"
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              onLoadSample('receipt');
+            }}
+            className="px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-xs font-medium text-slate-300 hover:text-white transition-colors flex items-center gap-1.5 cursor-pointer"
           >
             <ImageIcon className="w-3.5 h-3.5 text-purple-400" />
             Sample Scanned Invoice

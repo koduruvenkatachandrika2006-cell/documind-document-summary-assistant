@@ -226,6 +226,7 @@ ${processedDoc.improvements.map(imp => `- [${imp.category}] ${imp.suggestion}`).
       {/* Header Bar */}
       <Navbar
         onReset={handleReset}
+        onLoadSample={handleLoadSample}
         hasActiveDocument={Boolean(processedDoc)}
       />
 
