@@ -595,20 +595,22 @@ export function generateHeuristicAnalysis(text: string, fileName: string): {
 
   const category = classifyDocument(cleaned, fileName);
 
-  let title = candidateName;
-  if (!title) {
-    if (category === 'Job Description / ATS' || lowerContent.includes('ats')) {
-      title = 'ATS Resume Optimization & Job Role Overview';
-    } else if (category === 'Contract') {
-      title = 'Legal Contract & Terms Agreement';
-    } else if (category === 'Invoice') {
-      const invMatch = cleaned.match(/invoice\s*#?\s*([A-Z0-9-]+)/i);
-      title = invMatch ? `Invoice ${invMatch[1]}` : 'Financial Invoice Document';
-    } else {
-      title = fileName.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ')
-        .replace(/WhatsApp Image \d{4} \d{2} \d{2} At \d{2}\.\d{2}\.\d{2} \(\d+\)/gi, 'Uploaded Document')
-        .replace(/\b\w/g, l => l.toUpperCase()).trim();
-    }
+  let title = '';
+  if (category === 'Resume / CV' && candidateName) {
+    title = `Resume — ${candidateName}`;
+  } else if (category === 'Job Description / ATS') {
+    title = 'Job Description & Role Requirements';
+  } else if (category === 'Contract') {
+    title = 'Legal Contract & Terms Agreement';
+  } else if (category === 'Invoice') {
+    const invMatch = cleaned.match(/invoice\s*#?\s*([A-Z0-9-]+)/i);
+    title = invMatch ? `Invoice ${invMatch[1]}` : 'Financial Invoice Document';
+  } else if (category === 'Person Profile / Identity Image') {
+    title = 'Person Photograph';
+  } else {
+    title = fileName.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ')
+      .replace(/WhatsApp Image \d{4} \d{2} \d{2} At \d{2}\.\d{2}\.\d{2} \(\d+\)/gi, 'Uploaded Document')
+      .replace(/\b\w/g, l => l.toUpperCase()).trim();
   }
 
   if (!title || title.length < 3) title = 'Uploaded Document';
@@ -680,26 +682,26 @@ export function generateHeuristicAnalysis(text: string, fileName: string): {
   let coreFocusProse = '';
   let detailProse = '';
 
-  if (category === 'Resume / CV' || lowerContent.includes('koduru') || lowerContent.includes('chandrika') || lowerContent.includes('experience')) {
-    const nameStr = candidateName || title;
-    coreFocusProse = `presents the professional resume of ${nameStr}, detailing technical competencies, academic qualifications, and engineering project implementations.`;
+  if (category === 'Resume / CV' && (lowerContent.includes('resume') || lowerContent.includes('curriculum vitae'))) {
+    const nameStr = candidateName || 'the applicant';
+    coreFocusProse = `presents the professional resume of ${nameStr}, detailing applicant qualifications, professional background, and key experience.`;
     
     const contactLine = firstLines.find(l => l.includes('@') || l.includes('LinkedIn') || l.includes('GitHub')) || '';
     detailProse = contactLine 
       ? `Applicant credentials and professional profiles: ${sanitizePrivacyInfo(contactLine)}.`
-      : "Qualifications emphasize hands-on experience in software engineering, data structures, and modern application frameworks.";
-  } else if (category === 'Job Description / ATS' || lowerContent.includes('ats')) {
-    coreFocusProse = "outlines a targeted prompt for ATS resume optimization: 'Based on the tone, language, and core values of leading industry companies, rewrite resume summary and skills sections to align with industry standards.'";
-    detailProse = "Key details focus on tailoring applicant qualifications, eliminating generic phrasing, and structuring technical skills to match target job descriptions.";
-  } else if (category === 'Contract' || lowerContent.includes('agreement')) {
-    coreFocusProse = cleanSentences[0] || `outlines legally binding contractual terms, party covenants, and execution guidelines for ${title}.`;
-    detailProse = cleanSentences.slice(1, 4).join(' ') || "Key clauses define performance obligations, regulatory compliance standards, and dispute resolution mechanisms.";
-  } else if (category === 'Invoice' || lowerContent.includes('bill to') || lowerContent.includes('amount due')) {
-    coreFocusProse = cleanSentences[0] || `specifies financial invoice billing details, vendor references, and net payment settlement terms for ${title}.`;
-    detailProse = cleanSentences.slice(1, 4).join(' ') || "Itemized breakdown verifies billing charges, customer account references, and settlement deadlines.";
+      : "Qualifications outline core competencies, education, and professional experience.";
+  } else if (category === 'Job Description / ATS') {
+    coreFocusProse = "outlines job role requirements, key responsibilities, and target candidate qualifications.";
+    detailProse = "Key details focus on required technical competencies, experience background, and position responsibilities.";
+  } else if (category === 'Contract') {
+    coreFocusProse = cleanSentences[0] || `outlines contractual terms, party covenants, and execution guidelines for ${title}.`;
+    detailProse = cleanSentences.slice(1, 4).join(' ') || "Key clauses define performance obligations, compliance standards, and terms.";
+  } else if (category === 'Invoice') {
+    coreFocusProse = cleanSentences[0] || `specifies invoice billing details, vendor references, and payment settlement terms for ${title}.`;
+    detailProse = cleanSentences.slice(1, 4).join(' ') || "Itemized breakdown verifies billing charges, account references, and totals.";
   } else if (lowerContent.includes('mainactivity') || lowerContent.includes('gradle') || lowerContent.includes('manifest') || lowerContent.includes('android')) {
-    coreFocusProse = "presents an Android application codebase snapshot featuring core source files (MainActivity.kt), project configuration scripts (build.gradle.kts), and application manifest definitions (AndroidManifest.xml).";
-    detailProse = "Key technical components include runtime saveable Android dependencies (runtime-saveable-android:1.10.4), UI component state bindings, and Android build manifest registration.";
+    coreFocusProse = "presents an Android application codebase snapshot featuring core source files, project configuration scripts, and manifest definitions.";
+    detailProse = "Key technical components include runtime dependencies, UI component state bindings, and build manifest registration.";
   } else if (cleanSentences.length > 0) {
     coreFocusProse = cleanSentences.slice(0, 2).join(' ');
     detailProse = cleanSentences.slice(2, 6).join(' ') || cleanSentences[0];
@@ -720,19 +722,19 @@ export function generateHeuristicAnalysis(text: string, fileName: string): {
   const keyPoints: KeyPoint[] = [];
   const seenPoints = new Set<string>();
 
-  if (category === 'Resume / CV' || lowerContent.includes('koduru')) {
+  if (category === 'Resume / CV' && lowerContent.includes('resume')) {
     keyPoints.push(
-      { category: 'Finding', point: `Document provides professional resume details for candidate ${title}.` },
-      { category: 'Requirement', point: 'Outlines core technical competencies, programming languages, and framework experience.' },
-      { category: 'Objective', point: 'Demonstrates structured software engineering principles and academic background.' },
-      { category: 'Conclusion', point: 'Includes verified contact information and professional profiles (LinkedIn / GitHub).' }
+      { category: 'Finding', point: `Document provides professional resume details for ${title}.` },
+      { category: 'Requirement', point: 'Outlines core technical competencies, skills, and framework experience.' },
+      { category: 'Objective', point: 'Demonstrates professional qualifications and educational background.' },
+      { category: 'Conclusion', point: 'Includes applicant credentials and professional profile information.' }
     );
-  } else if (category === 'Job Description / ATS' || lowerContent.includes('ats')) {
+  } else if (category === 'Job Description / ATS') {
     keyPoints.push(
-      { category: 'Objective', point: 'Optimize resume tone and keyword density to align with target industry company standards.' },
-      { category: 'Requirement', point: 'Structure technical skills and project highlights to satisfy ATS automated screening filters.' },
-      { category: 'Action', point: 'Eliminate generic phrasing and emphasize measurable engineering achievements.' },
-      { category: 'Conclusion', point: 'Tailor applicant summary to match target job description requirements.' }
+      { category: 'Objective', point: 'Details job role specifications and target candidate requirements.' },
+      { category: 'Requirement', point: 'Structures technical skills and project highlights for position alignment.' },
+      { category: 'Action', point: 'Outlines key duties, qualifications, and operational expectations.' },
+      { category: 'Conclusion', point: 'Establishes clear criteria for applicant evaluation and role fit.' }
     );
   } else if (lowerContent.includes('mainactivity') || lowerContent.includes('gradle')) {
     keyPoints.push(

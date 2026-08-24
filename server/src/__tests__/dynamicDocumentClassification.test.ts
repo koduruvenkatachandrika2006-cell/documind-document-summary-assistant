@@ -9,7 +9,7 @@ describe('Dynamic Document Classification & Content-Specific Analysis', () => {
     expect(category).toBe('Job Description / ATS');
 
     const analysis = generateHeuristicAnalysis(text, 'ats_prompt_screenshot.png');
-    expect(analysis.title).toContain('ATS');
+    expect(analysis.title).toContain('Job Description');
     expect(analysis.summary.medium).toContain('ATS');
     expect(analysis.summary.medium).not.toContain('INV-9842');
     expect(analysis.summary.medium).not.toContain('DocuMind Corporation');
