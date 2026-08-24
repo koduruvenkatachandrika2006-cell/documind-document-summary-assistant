@@ -41,20 +41,26 @@ export function App() {
           localStorage.setItem('documind_cached_doc', JSON.stringify(serverDoc));
         } else {
           const cachedStr = localStorage.getItem('documind_cached_doc');
+          let restored = false;
           if (cachedStr) {
             try {
               const cached = JSON.parse(cachedStr);
-              if (cached.id === docId) {
+              if (cached && cached.id === docId) {
                 setProcessedDoc(cached);
-                apiService.syncStoreDocument(cached);
-              } else {
-                setErrorMessage('Document not found or session expired. Please upload a document.');
+                apiService.syncStoreDocument(cached).catch(() => {});
+                restored = true;
               }
             } catch (e) {
-              setErrorMessage('Document not found. Please upload a new document.');
+              restored = false;
             }
-          } else {
-            setErrorMessage('Document not found. Please upload a new document.');
+          }
+          if (!restored) {
+            localStorage.removeItem('documind_cached_doc');
+            if (window.location.pathname !== '/') {
+              window.history.pushState({}, '', '/');
+            }
+            setProcessedDoc(null);
+            setErrorMessage(null);
           }
         }
         setIsProcessing(false);
