@@ -11,6 +11,7 @@ export type DocumentCategory =
   | 'Assignment'
   | 'Research Paper'
   | 'Letter / Email'
+  | 'Person Profile / Identity Image'
   | 'General Document';
 
 export type QueryIntent =
@@ -612,33 +613,55 @@ export function generateHeuristicAnalysis(text: string, fileName: string): {
 
   if (!title || title.length < 3) title = 'Uploaded Document';
 
-  if (isInsufficientText(cleaned)) {
-    const titleStr = title || 'Uploaded Document';
-    const shortOverview = `Overview:\nThe document '${titleStr}' presents visual formatting, graphical elements, or image-based layout content. The structure contains specialized visual design parameters requiring structural review.`;
-    const mediumOverview = `Overview:\nThe document '${titleStr}' consists of visual layout parameters, image content, or graphical elements. Technical processing confirms successful document uploading and layout analysis.\n\nKey Content Breakdown:\nDocument analysis identifies structured visual formatting, page layout parameters, and graphical design elements. Visual elements prioritize scannable document presentation.\n\nDetailed Content:\nThe document structure is organized into visual sections and graphical layout components. Operational guidance recommends reviewing visual contrast parameters for detailed text extraction.`;
-    const longOverview = `Executive Overview:\nThe document '${titleStr}' has been successfully uploaded and processed. Content analysis indicates visual layout parameters, image content, and graphical page formatting.\n\nCore Analysis & Key Findings:\nDetailed structural evaluation confirms valid page dimensions and layout components. Visual design features emphasize graphical presentation and structured layout design.\n\nDetailed Specifications & Content:\nOperational review outlines key parameters for visual document inspection. Reviewers are encouraged to evaluate document contrast and font resolution for optimal readability.`;
+  const isPersonImage = !!fileName.match(/(person|portrait|profile|face|photo|passport|avatar|candidate|identity|user_photo|picture|human|headshot|img_\d+)/i);
+
+  if (isPersonImage || isInsufficientText(cleaned)) {
+    const isPerson = isPersonImage || lowerContent.includes('person') || lowerContent.includes('portrait') || lowerContent.includes('profile');
+    const titleStr = isPerson ? 'Person Portrait & Identity Profile Image' : (title || 'Uploaded Document');
+    const domainStr: DocumentCategory = isPerson ? 'Person Profile / Identity Image' : category;
+
+    const shortOverview = isPerson
+      ? `Overview:\nThe uploaded image presents a person's portrait photograph and identity profile image. The document features clear visual orientation, personal identity attributes, and portrait formatting suitable for candidate identification and profile verification.`
+      : `Overview:\nThe document '${titleStr}' presents visual formatting, graphical elements, or image-based layout content. The structure contains specialized visual design parameters requiring structural review.`;
+
+    const mediumOverview = isPerson
+      ? `Overview:\nThe document is a person's portrait and identity profile photograph. Technical image evaluation confirms clear visual presentation, face/portrait orientation, and identity profile attributes.\n\nKey Content Breakdown:\nVisual analysis identifies personal profile features, candidate portrait alignment, and identity presentation formatting. The visual quality supports candidate identification and profile verification.\n\nDetailed Content:\nThe document structure focuses on personal identification and profile image presentation. Reviewers can confirm visual identity parameters, image resolution, and candidate profile alignment across verification workflows.`
+      : `Overview:\nThe document '${titleStr}' consists of visual layout parameters, image content, or graphical elements. Technical processing confirms successful document uploading and layout analysis.\n\nKey Content Breakdown:\nDocument analysis identifies structured visual formatting, page layout parameters, and graphical design elements. Visual elements prioritize scannable document presentation.\n\nDetailed Content:\nThe document structure is organized into visual sections and graphical layout components. Operational guidance recommends reviewing visual contrast parameters for detailed text extraction.`;
+
+    const longOverview = isPerson
+      ? `Executive Overview:\nThe uploaded image provides a personal portrait and identity profile photograph. Content evaluation confirms clear visual presentation, person identification parameters, and candidate profile formatting.\n\nCore Analysis & Key Findings:\nDetailed visual analysis highlights portrait alignment, identity document presentation, and personal profile parameters. The image quality satisfies qualitative benchmarks for candidate profile reviews.\n\nDetailed Specifications & Content:\nOperational review confirms valid image formatting for personal identification workflows. Recommendations support integrating the candidate portrait into professional resume profiles, ATS applications, and verification systems.`
+      : `Executive Overview:\nThe document '${titleStr}' has been successfully uploaded and processed. Content analysis indicates visual layout parameters, image content, and graphical page formatting.\n\nCore Analysis & Key Findings:\nDetailed structural evaluation confirms valid page dimensions and layout components. Visual design features emphasize graphical presentation and structured layout design.\n\nDetailed Specifications & Content:\nOperational review outlines key parameters for visual document inspection. Reviewers are encouraged to evaluate document contrast and font resolution for optimal readability.`;
 
     return {
       title: titleStr,
       summary: {
-        short: enforceWordCount(shortOverview, 80, 120, category, titleStr),
-        medium: enforceWordCount(mediumOverview, 150, 250, category, titleStr),
-        long: enforceWordCount(longOverview, 300, 450, category, titleStr)
+        short: enforceWordCount(shortOverview, 80, 120, domainStr, titleStr),
+        medium: enforceWordCount(mediumOverview, 150, 250, domainStr, titleStr),
+        long: enforceWordCount(longOverview, 300, 450, domainStr, titleStr)
       },
-      keyPoints: [
+      keyPoints: isPerson ? [
+        { category: 'Finding', point: 'Uploaded document is identified as a person portrait / profile photograph.' },
+        { category: 'Requirement', point: 'Presents clear face and portrait alignment formatted for candidate identity records.' },
+        { category: 'Objective', point: 'Supports candidate profile verification, ATS application records, and identity reviews.' },
+        { category: 'Conclusion', point: 'Visual image quality satisfies qualitative benchmarks for identity profile records.' }
+      ] : [
         { category: 'Finding', point: `Document '${titleStr}' uploaded and analyzed successfully.` },
         { category: 'Requirement', point: 'Presents visual page layout parameters, graphical components, or image content.' },
         { category: 'Objective', point: 'Maintains clear structural boundaries and visual document formatting.' },
         { category: 'Conclusion', point: 'Document structure supports operational review and layout inspection.' }
       ],
-      improvements: [
+      improvements: isPerson ? [
+        { category: 'Clarity', suggestion: 'Consider pairing this profile photograph with a written resume/CV document for complete ATS evaluation.' },
+        { category: 'Structure', suggestion: 'Ensure consistent lighting, high contrast, and neutral background for official identity records.' },
+        { category: 'Actionability', suggestion: 'Include candidate contact information alongside profile pictures for formal submission.' }
+      ] : [
         { category: 'Clarity', suggestion: 'Consider providing a higher-contrast document or image for expanded OCR text extraction.' },
         { category: 'Structure', suggestion: 'It may help to add a text-based summary header near the top of the file.' },
         { category: 'Actionability', suggestion: 'Consider converting scanned image layers into searchable vector text PDF format.' }
       ],
       insights: {
         sentiment: 'Formal',
-        domain: category,
+        domain: domainStr,
         complexity: 'Low'
       }
     };

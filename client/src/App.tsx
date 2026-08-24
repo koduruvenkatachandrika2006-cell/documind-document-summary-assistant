@@ -85,14 +85,8 @@ export function App() {
     if (doc) {
       localStorage.setItem('documind_cached_doc', JSON.stringify(doc));
       apiService.syncStoreDocument(doc).catch(err => console.warn('[App] syncStoreDocument background notice:', err));
-      if (window.location.pathname !== `/document/${doc.id}`) {
-        window.history.pushState({}, '', `/document/${doc.id}`);
-      }
     } else {
       localStorage.removeItem('documind_cached_doc');
-      if (window.location.pathname !== '/') {
-        window.history.pushState({}, '', '/');
-      }
     }
   };
 
