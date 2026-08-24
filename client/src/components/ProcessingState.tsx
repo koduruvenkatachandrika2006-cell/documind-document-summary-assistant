@@ -4,17 +4,18 @@ import { CheckCircle2, Loader2, FileText, Cpu, Sparkles, Layers, CheckSquare } f
 interface ProcessingStateProps {
   fileName: string;
   isImage: boolean;
+  currentStep?: number;
 }
 
-export const ProcessingState: React.FC<ProcessingStateProps> = ({ fileName, isImage }) => {
-  const [step, setStep] = useState<number>(1);
+export const ProcessingState: React.FC<ProcessingStateProps> = ({ fileName, isImage, currentStep }) => {
+  const [internalStep, setInternalStep] = useState<number>(1);
 
   useEffect(() => {
-    // Progress milestones
-    const t1 = setTimeout(() => setStep(2), 500);
-    const t2 = setTimeout(() => setStep(3), 1100);
-    const t3 = setTimeout(() => setStep(4), 1800);
-    const t4 = setTimeout(() => setStep(5), 2400);
+    if (typeof currentStep === 'number') return;
+    const t1 = setTimeout(() => setInternalStep(2), 500);
+    const t2 = setTimeout(() => setInternalStep(3), 1100);
+    const t3 = setTimeout(() => setInternalStep(4), 1800);
+    const t4 = setTimeout(() => setInternalStep(5), 2400);
 
     return () => {
       clearTimeout(t1);
@@ -22,7 +23,9 @@ export const ProcessingState: React.FC<ProcessingStateProps> = ({ fileName, isIm
       clearTimeout(t3);
       clearTimeout(t4);
     };
-  }, []);
+  }, [currentStep]);
+
+  const step = typeof currentStep === 'number' ? currentStep : internalStep;
 
   const steps = [
     { id: 1, label: 'Document uploaded', detail: fileName },

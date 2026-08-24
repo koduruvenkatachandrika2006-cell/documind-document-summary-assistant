@@ -10,17 +10,26 @@ export class ApiService {
     const contentType = response.headers.get('content-type') || '';
     const text = await response.text();
 
+    let jsonResult: any = null;
     if (contentType.includes('application/json') || (text.trim().startsWith('{') && text.trim().endsWith('}'))) {
       try {
-        return JSON.parse(text);
-      } catch (_) {
-        // Fallthrough to safe error handling below
-      }
+        jsonResult = JSON.parse(text);
+      } catch (_) {}
     }
 
-    // Handle HTML error pages or non-JSON responses from server/Vercel
+    if (jsonResult) {
+      if (!response.ok || jsonResult.success === false) {
+        throw new Error(jsonResult.error || jsonResult.message || defaultErrorMessage);
+      }
+      return jsonResult;
+    }
+
     if (!response.ok) {
-      throw new Error('Document processing service is temporarily unavailable. Please try again.');
+      const cleanText = text.replace(/<[^>]*>/g, '').trim();
+      const userMessage = cleanText && cleanText.length < 150
+        ? cleanText
+        : `Server Error (${response.status}): ${response.statusText || defaultErrorMessage}`;
+      throw new Error(userMessage);
     }
 
     throw new Error(defaultErrorMessage);
