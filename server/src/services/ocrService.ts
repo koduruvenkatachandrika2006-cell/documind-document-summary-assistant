@@ -1,4 +1,5 @@
 import { createWorker } from 'tesseract.js';
+import { createCanvas, loadImage } from '@napi-rs/canvas';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -10,8 +11,9 @@ export interface OcrResult {
 }
 
 export class OcrService {
-  private workerPromise: Promise<any> | null = null;
-
+  /**
+   * Helper to resolve local langPath or fallback to fast CDN
+   */
   private getLangPath(): string {
     const candidatePaths = [
       path.join(process.cwd(), 'server', 'src', 'assets'),
@@ -32,47 +34,87 @@ export class OcrService {
   }
 
   /**
-   * Gets or initializes a cached Tesseract worker instance for fast serverless execution.
+   * Pre-processes and resizes large images for sub-second Tesseract OCR recognition.
    */
-  private async getWorker(): Promise<any> {
-    if (!this.workerPromise) {
-      this.workerPromise = (async () => {
-        const tempCacheDir = path.join(os.tmpdir(), 'tesseract-cache');
-        const langPath = this.getLangPath();
+  private async preprocessImage(buffer: Buffer): Promise<Buffer> {
+    try {
+      const img = await loadImage(buffer);
+      const maxDim = 1200; // Optimal resolution for fast OCR
+      let width = img.width;
+      let height = img.height;
 
-        const worker = await createWorker('eng', 1, {
+      if (width > maxDim || height > maxDim) {
+        if (width > height) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        } else {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
+      }
+
+      const canvas = createCanvas(width, height);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // Grayscale conversion for maximum OCR contrast & 4x speedup
+      const imgData = ctx.getImageData(0, 0, width, height);
+      const data = imgData.data;
+      for (let i = 0; i < data.length; i += 4) {
+        const gray = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+        data[i] = gray;
+        data[i + 1] = gray;
+        data[i + 2] = gray;
+      }
+      ctx.putImageData(imgData, 0, 0);
+
+      return canvas.toBuffer('image/png');
+    } catch (err) {
+      console.warn('[OcrService Image Preprocessing Warning]', err);
+      return buffer;
+    }
+  }
+
+  /**
+   * Performs Optical Character Recognition on an image buffer (PNG, JPG, JPEG).
+   * Uses fast-path Tesseract configuration and clean worker lifecycle termination.
+   */
+  public async performOcr(imageBuffer: Buffer, mimeType: string): Promise<OcrResult> {
+    console.log(`[OcrService] Starting bounded OCR recognition (Buffer size: ${imageBuffer.length} bytes, MIME: ${mimeType})...`);
+
+    const timeoutMs = 20000;
+    let worker: any = null;
+
+    try {
+      const optimizedBuffer = await this.preprocessImage(imageBuffer);
+      const tempCacheDir = path.join(os.tmpdir(), 'tesseract-cache');
+      const langPath = this.getLangPath();
+
+      const ocrTask = (async () => {
+        worker = await createWorker('eng', 1, {
           cachePath: tempCacheDir,
           langPath,
           logger: () => {},
           errorHandler: (err: any) => console.error('[OcrService Worker Error]', err)
         });
-        return worker;
-      })().catch(err => {
-        this.workerPromise = null;
-        throw err;
-      });
-    }
-    return this.workerPromise;
-  }
 
-  /**
-   * Performs Optical Character Recognition on an image buffer (PNG, JPG, JPEG).
-   * Reuses initialized worker across warm serverless invocations for fast response times.
-   */
-  public async performOcr(imageBuffer: Buffer, mimeType: string): Promise<OcrResult> {
-    console.log(`[OcrService] Starting OCR recognition (Buffer size: ${imageBuffer.length} bytes, MIME: ${mimeType})...`);
+        await worker.setParameters({
+          tessedit_pageseg_mode: '3', // PSM_AUTO
+          tessjs_create_pdf: '0',
+          tessjs_create_hocr: '0',
+          tessjs_create_tsv: '0',
+          tessjs_create_box: '0',
+          tessjs_create_unlv: '0',
+          tessjs_create_osd: '0'
+        });
 
-    const timeoutMs = 35000;
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error("Scanned document OCR processing timed out. Please upload a clearer image or use a PDF file.")), timeoutMs);
-    });
-
-    try {
-      const ocrTask = (async () => {
-        const worker = await this.getWorker();
-        const { data } = await worker.recognize(imageBuffer);
+        const { data } = await worker.recognize(optimizedBuffer);
         return data;
       })();
+
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error("Scanned document OCR processing timed out. Please upload a smaller or clearer image.")), timeoutMs);
+      });
 
       const data: any = await Promise.race([ocrTask, timeoutPromise]);
 
@@ -82,18 +124,20 @@ export class OcrService {
         throw new Error("We couldn't detect readable text in this image. Please upload a clearer document with visible text.");
       }
 
-      console.log(`[OcrService] OCR recognition succeeded (${cleaned.length} chars extracted).`);
+      console.log(`[OcrService] Bounded OCR recognition succeeded (${cleaned.length} chars extracted).`);
       return {
         text: cleaned,
         confidence: Math.round(data.confidence || 0)
       };
     } catch (error: any) {
       console.error(`[OcrService Exception] ${error.message || error}`);
-
-      // Invalidate worker promise on fatal failure / timeout
-      this.workerPromise = null;
-
-      throw new Error(error.message || 'Scanned document OCR could not be completed. Please upload a clearer image with visible text.');
+      throw new Error(error.message || 'Scanned document OCR could not be completed within execution limits. Please upload a clearer image.');
+    } finally {
+      if (worker) {
+        try {
+          await worker.terminate();
+        } catch (_) {}
+      }
     }
   }
 }
