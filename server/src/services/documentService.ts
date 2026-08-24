@@ -66,15 +66,15 @@ export class DocumentService {
         const pdfRes = await pdfService.extractText(file.buffer);
         extractedText = pdfRes.text;
         pageCount = pdfRes.pageCount;
-        extractionMethod = 'PDF Text Extraction';
+        extractionMethod = pdfRes.extractionMethod as any || 'PDF Text Extraction';
       } catch (pdfErr: any) {
-        console.warn(`[DocumentService] PDF parsing notice: ${pdfErr.message}. Attempting OCR fallback...`);
+        console.warn(`[DocumentService] PDF parsing notice: ${pdfErr.message}. Attempting direct OCR fallback...`);
         try {
           const ocrRes = await ocrService.performOcr(file.buffer, file.mimetype);
           extractedText = ocrRes.text;
           extractionMethod = 'Tesseract OCR Processing';
         } catch (ocrErr: any) {
-          throw new Error(`PDF text extraction failed: ${pdfErr.message}`);
+          throw new Error(pdfErr.message || 'Unable to extract text from this PDF file. Please upload a clearer document.');
         }
       }
     } else {
