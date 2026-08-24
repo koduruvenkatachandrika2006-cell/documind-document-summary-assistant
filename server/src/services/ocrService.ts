@@ -30,8 +30,8 @@ export class OcrService {
       }
     }
 
-    console.warn(`[OcrService Warning] Local traineddata asset not found in candidate paths. Falling back to HTTP CDN...`);
-    return 'https://tessdata.projectnaptha.com/4.0.0_best';
+    console.warn(`[OcrService Warning] Local traineddata asset not found in candidate paths. Falling back to fast HTTP CDN...`);
+    return 'https://raw.githubusercontent.com/naptha/tessdata/gh-pages/4.0.0_fast';
   }
 
   /**
@@ -117,7 +117,7 @@ export class OcrService {
     }
 
     // 2. Fast local Tesseract OCR with downsampling & single-pass PSM
-    const timeoutMs = 15000;
+    const timeoutMs = 35000;
     let worker: any = null;
 
     try {
