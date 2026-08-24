@@ -113,14 +113,30 @@ export function App() {
     }
   };
 
-  const handleLoadSample = (sampleType: 'proposal' | 'receipt') => {
+  const handleLoadSample = async (sampleType: 'proposal' | 'receipt') => {
     handleReset();
     setIsProcessing(true);
-    setTimeout(() => {
+    setErrorMessage(null);
+
+    const fileName = sampleType === 'proposal' ? 'sample_proposal.pdf' : 'sample_scanned_invoice.png';
+    const mimeType = sampleType === 'proposal' ? 'application/pdf' : 'image/png';
+    const filePath = `/${fileName}`;
+
+    try {
+      const response = await fetch(filePath);
+      if (!response.ok) {
+        throw new Error(`Failed to load ${fileName} sample file.`);
+      }
+      const blob = await response.blob();
+      const file = new File([blob], fileName, { type: mimeType });
+
+      await handleFileSelected(file);
+    } catch (err: any) {
+      console.warn(`[App] Sample file fetch failed: ${err.message}. Using sample fallback.`);
       const targetDoc = sampleType === 'proposal' ? SAMPLE_PROPOSAL_DOC : SAMPLE_RECEIPT_DOC;
       setActiveDocument(targetDoc);
       setIsProcessing(false);
-    }, 800);
+    }
   };
 
   const handleCopySummary = (textToCopy?: string) => {
