@@ -78,7 +78,7 @@ export function App() {
     setProcessedDoc(doc);
     if (doc) {
       localStorage.setItem('documind_cached_doc', JSON.stringify(doc));
-      apiService.syncStoreDocument(doc);
+      apiService.syncStoreDocument(doc).catch(err => console.warn('[App] syncStoreDocument background notice:', err));
       if (window.location.pathname !== `/document/${doc.id}`) {
         window.history.pushState({}, '', `/document/${doc.id}`);
       }
@@ -107,7 +107,8 @@ export function App() {
       const result = await apiService.uploadDocument(file);
       setActiveDocument(result);
     } catch (error: any) {
-      setErrorMessage(error.message || 'An unexpected error occurred while analyzing the document.');
+      console.error('[App] Document upload failed:', error);
+      setErrorMessage(error.message || 'Unable to finish processing this scanned document. Please try again.');
     } finally {
       setIsProcessing(false);
     }
@@ -134,8 +135,8 @@ export function App() {
       const result = await apiService.uploadDocument(file);
       setActiveDocument(result);
     } catch (err: any) {
-      console.warn(`[App] Sample processing notice: ${err.message}`);
-      setErrorMessage(err.message || 'Scanned document OCR could not be completed. Please try another image.');
+      console.error(`[App] Sample ${sampleType} processing failed:`, err);
+      setErrorMessage(err.message || 'Unable to finish processing this scanned document. Please try again.');
     } finally {
       setIsProcessing(false);
     }

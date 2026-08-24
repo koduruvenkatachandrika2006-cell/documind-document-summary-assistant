@@ -9,29 +9,39 @@ export interface OcrResult {
 }
 
 export class OcrService {
+  private workerPromise: Promise<any> | null = null;
+
+  /**
+   * Gets or initializes a cached Tesseract worker instance for fast serverless execution.
+   */
+  private async getWorker(): Promise<any> {
+    if (!this.workerPromise) {
+      this.workerPromise = (async () => {
+        const tempCacheDir = path.join(os.tmpdir(), 'tesseract-cache');
+        const worker = await createWorker('eng', 1, {
+          cachePath: tempCacheDir,
+          logger: () => {},
+          errorHandler: (err: any) => console.error('[OcrService Worker Error]', err)
+        });
+        return worker;
+      })().catch(err => {
+        this.workerPromise = null;
+        throw err;
+      });
+    }
+    return this.workerPromise;
+  }
+
   /**
    * Performs Optical Character Recognition on an image buffer (PNG, JPG, JPEG).
-   * Configured specifically for Vercel Serverless Functions with writable /tmp caching.
+   * Reuses initialized worker across warm serverless invocations for fast response times.
    */
   public async performOcr(imageBuffer: Buffer, mimeType: string): Promise<OcrResult> {
     console.log(`[OcrService] Starting OCR recognition (Buffer size: ${imageBuffer.length} bytes, MIME: ${mimeType})...`);
 
-    let worker: any = null;
     try {
-      // Use /tmp directory for Vercel serverless writable filesystem access
-      const tempCacheDir = path.join(os.tmpdir(), 'tesseract-cache');
-
-      worker = await createWorker('eng', 1, {
-        cachePath: tempCacheDir,
-        logger: () => {},
-        errorHandler: (err: any) => console.error('[OcrService Worker Error]', err)
-      });
-
+      const worker = await this.getWorker();
       const { data } = await worker.recognize(imageBuffer);
-      
-      try {
-        await worker.terminate();
-      } catch (_) {}
 
       const cleaned = cleanExtractedText(data.text);
       
@@ -45,19 +55,15 @@ export class OcrService {
         confidence: Math.round(data.confidence || 0)
       };
     } catch (error: any) {
-      if (worker) {
-        try {
-          await worker.terminate();
-        } catch (_) {}
-      }
-
       console.error(`[OcrService Exception] ${error.message || error}`);
+
+      // Invalidate worker promise on fatal failure
+      this.workerPromise = null;
 
       if (error.message && error.message.includes("couldn't detect readable text")) {
         throw error;
       }
 
-      // Return friendly Vercel-safe error message
       throw new Error('Scanned document OCR could not be completed. Please try another image.');
     }
   }
