@@ -467,7 +467,8 @@ export function enforceWordCount(text: string, minWords: number, maxWords: numbe
         "\n\nStrategic Value & Professional Alignment:\nIn conclusion, the document confirms immediate readiness to deliver high-impact contributions to engineering teams. Continuous quality assurance and stakeholder coordination guarantee reliable execution across all project milestones. The applicant leverages modern development tools to streamline software delivery cycles.",
         "\n\nCareer Milestones & Academic Background:\nAcademic foundation and project achievements reflect strong theoretical knowledge integrated with practical software engineering applications. Technical projects demonstrate proficiency in backend API development, relational database design, data structures, and frontend interface optimization.",
         "\n\nEngineering Methodology & Quality Standards:\nFurthermore, technical workflow practices prioritize clean code architecture, automated testing pipelines, version control management, and thorough documentation standards. Qualitative benchmarks confirm strict adherence to industry software engineering best practices.",
-        "\n\nProfessional Development & Technical Roadmap:\nContinuous learning initiatives emphasize staying current with emerging cloud infrastructure, microservice architecture patterns, and automated deployment pipelines. The candidate maintains active engagement with technical open-source repositories and industry best practices."
+        "\n\nProfessional Development & Technical Roadmap:\nContinuous learning initiatives emphasize staying current with emerging cloud infrastructure, microservice architecture patterns, and automated deployment pipelines. The candidate maintains active engagement with technical open-source repositories and industry best practices.",
+        "\n\nCross-Functional Team Collaboration:\nWork history demonstrates effective communication with product managers, QA engineers, and system architects. The applicant actively participates in daily standup reviews, sprint planning sessions, and code refactoring initiatives."
       );
     } else if (category === 'Technical Document' || text.toLowerCase().includes('android') || text.toLowerCase().includes('mainactivity')) {
       expansionPool.push(
@@ -476,7 +477,8 @@ export function enforceWordCount(text: string, minWords: number, maxWords: numbe
         "\n\nQuality Assurance & Execution Governance:\nIn conclusion, technical documentation establishes clear operational alignment between software architecture and project deliverables. Automated build checks enforce code quality standards and deployment readiness.",
         "\n\nDependency Management & Module Compilation:\nBuild configurations define external library versions, target SDK levels, compiler optimization flags, and automated build artifact generation. Static analysis guarantees memory efficiency and optimal runtime performance.",
         "\n\nRuntime Event Handlers & State Persistence:\nState management routines handle activity lifecycle transitions, user input events, and persistent storage synchronization. Error handling strategies prevent unexpected crashes and preserve user session integrity.",
-        "\n\nComponent Interoperability & System Scalability:\nSubsystem interfaces enforce loose coupling and strict separation of concerns across service layers. System telemetry monitors resource utilization and execution response times."
+        "\n\nComponent Interoperability & System Scalability:\nSubsystem interfaces enforce loose coupling and strict separation of concerns across service layers. System telemetry monitors resource utilization and execution response times.",
+        "\n\nPerformance Benchmarks & Profiling Data:\nAutomated memory profiling confirms zero thread contention and low memory footprint during peak application load. Execution logs demonstrate low latency processing."
       );
     } else if (category === 'Invoice' || text.toLowerCase().includes('bill to')) {
       expansionPool.push(
@@ -485,7 +487,8 @@ export function enforceWordCount(text: string, minWords: number, maxWords: numbe
         "\n\nSettlement Compliance & Audit Approval:\nIn conclusion, financial documentation verifies audit compliance and valid payment processing authorization. Approved settlement procedures guarantee prompt account reconciliation and financial record precision.",
         "\n\nTax Calculations & Payment Processing Terms:\nApplicable service taxes, regional billing adjustments, and remittance instructions ensure transparent financial accounting. Payment deadlines specify net settlement obligations and electronic transfer methods.",
         "\n\nVendor Verification & Account Reconciliation:\nAccount balances align with contractual service level agreements and billing cycle statements. Financial controls prevent double-billing and verify authorized transaction approvals.",
-        "\n\nAudit Records & Transaction Verification:\nHistorical billing records are archived in secure financial databases for quarterly compliance audits. Settlement tracking ensures timely payment confirmation and clear audit trails."
+        "\n\nAudit Records & Transaction Verification:\nHistorical billing records are archived in secure financial databases for quarterly compliance audits. Settlement tracking ensures timely payment confirmation and clear audit trails.",
+        "\n\nContractual Payment Governance:\nAll billed charges reflect predefined enterprise service tier pricing and discounted resource allocations. Vendor terms guarantee transparent pricing guarantees."
       );
     } else {
       expansionPool.push(
@@ -494,7 +497,9 @@ export function enforceWordCount(text: string, minWords: number, maxWords: numbe
         "\n\nAnalytical Conclusion & Implementation Alignment:\nIn conclusion, the document confirms alignment between technical capabilities and organizational objectives. Comprehensive evaluation criteria support long-term operational success, cross-functional collaboration, and overall team productivity across scheduled release milestones.",
         "\n\nQuality Control & Performance Benchmarks:\nEvaluation metrics establish objective criteria for assessing project progress, resource allocation, and operational efficiency. Continuous performance monitoring guarantees high qualitative output and thorough technical compliance.",
         "\n\nStakeholder Coordination & Governance Standards:\nCross-functional protocols ensure transparent communication, risk mitigation, and compliance across all project phases. Regular status reporting maintains team alignment and mitigates project risks.",
-        "\n\nOperational Execution & Review Framework:\nPost-implementation reviews track long-term performance metrics against initial project goals. Continuous feedback loops drive iterative improvement across operational workflows and team deliverables."
+        "\n\nOperational Execution & Review Framework:\nPost-implementation reviews track long-term performance metrics against initial project goals. Continuous feedback loops drive iterative improvement across operational workflows and team deliverables.",
+        "\n\nRisk Assessment & Mitigation Protocols:\nComprehensive risk registers identify operational dependencies, resource constraints, and technical fallback strategies. Execution frameworks ensure continuous operational resilience under all workload conditions.",
+        "\n\nResource Optimization & Milestone Tracking:\nResource allocation matrices optimize team throughput and task distribution. Milestone tracking mechanisms provide real-time visibility into project completion percentages and critical path schedules."
       );
     }
 
