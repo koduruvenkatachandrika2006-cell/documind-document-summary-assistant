@@ -134,7 +134,7 @@ export class OcrService {
       };
     } catch (error: any) {
       console.warn(`[OcrService Exception] ${error.message || error}`);
-      throw new Error(error.message || 'Unable to extract readable text from this image document. Please upload a clearer image.');
+      throw new Error('Unable to extract text from this image. Please upload a clearer image.');
     } finally {
       if (worker) {
         try {

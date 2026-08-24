@@ -57,7 +57,7 @@ export class AIService {
           generationConfig: { responseMimeType: 'application/json' }
         });
         
-        const systemPrompt = `You are DocuMind, an expert AI Document Analyzer and Executive Summarizer.
+        const systemPrompt = `You are DocuMind, an expert AI Document Analyzer and Executive Summarizer. You are analyzing the user's uploaded document. Use ONLY the supplied document content. Do not assume it is an invoice. Determine what the document is from its content and generate analysis appropriate to that document type. Never invent facts that are not present.
 Analyze the provided document text thoroughly and produce a structured JSON response matching the following strict guidelines:
 
 DOCUMENT CATEGORY: ${category}

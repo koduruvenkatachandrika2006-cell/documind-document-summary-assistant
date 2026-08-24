@@ -101,6 +101,7 @@ export function App() {
   const [processingStep, setProcessingStep] = useState<number>(1);
 
   const processFileFlow = async (file: File) => {
+    setActiveDocument(null);
     setSelectedFile(file);
     setIsProcessing(true);
     setErrorMessage(null);
