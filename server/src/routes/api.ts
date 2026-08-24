@@ -2,31 +2,24 @@ import { Router, Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 import { documentService } from '../services/documentService.js';
 import { aiService } from '../services/aiService.js';
-import { sanitizePrivacyInfo } from '../utils/textHelpers.js';
-
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: {
-    fileSize: parseInt(process.env.MAX_FILE_SIZE_BYTES || '10485760', 10) // 10MB limit
-  }
-});
 
 export const apiRouter = Router();
+
+// Configure Multer for in-memory buffer storage (max 10MB)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }
+});
 
 /**
  * Health check endpoint
  */
 apiRouter.get('/health', (req: Request, res: Response) => {
-  res.json({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    service: 'DocuMind API',
-    hasGeminiKey: Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'your_gemini_api_key_here')
-  });
+  return res.status(200).json({ status: 'ok', service: 'DocuMind API Router', timestamp: new Date().toISOString() });
 });
 
 /**
- * Get Document by ID (Refresh & Direct URL persistence)
+ * Get Document by ID (Refresh persistence & direct routing)
  */
 apiRouter.get('/documents/:id', (req: Request, res: Response) => {
   const { id } = req.params;
@@ -35,7 +28,7 @@ apiRouter.get('/documents/:id', (req: Request, res: Response) => {
   if (!doc) {
     return res.status(404).json({
       success: false,
-      error: 'Document not found'
+      error: 'Document not found or session expired.'
     });
   }
 
@@ -57,7 +50,6 @@ apiRouter.post('/documents/store', (req: Request, res: Response) => {
   documentService.storeDocument(doc);
   return res.status(200).json({ success: true });
 });
-
 
 /**
  * Standalone Text Extraction Endpoint (Section 12 API Design)
@@ -144,20 +136,27 @@ apiRouter.post('/summarize', async (req: Request, res: Response) => {
  */
 apiRouter.post('/upload', upload.single('document'), async (req: Request, res: Response, next: NextFunction) => {
   try {
+    console.log(`[API Upload] POST /api/upload request received.`);
+
     if (!req.file) {
+      console.warn(`[API Upload Failure] No file in payload.`);
       return res.status(400).json({
         success: false,
         error: 'No document file received. Please attach a PDF or image file.'
       });
     }
 
+    console.log(`[API Upload] Received file: '${req.file.originalname}' | MIME: ${req.file.mimetype} | Size: ${req.file.size} bytes.`);
+
     const processedDoc = await documentService.processDocument(req.file);
 
+    console.log(`[API Upload Success] Document '${processedDoc.fileName}' (${processedDoc.id}) processed successfully.`);
     return res.status(200).json({
       success: true,
       data: processedDoc
     });
   } catch (error: any) {
+    console.error(`[API Upload Failure Stage]: ${error.stage || 'General upload failure'} | Error: ${error.message || error}`);
     if (error.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({
         success: false,

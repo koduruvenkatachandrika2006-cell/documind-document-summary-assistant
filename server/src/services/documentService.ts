@@ -50,7 +50,6 @@ export class DocumentService {
    * Extracts text and calculates metadata from document.
    */
   public async extractDocumentText(file: Express.Multer.File) {
-    const startTime = Date.now();
     this.validateFile(file);
 
     const ext = file.originalname.split('.').pop()?.toLowerCase() || '';
@@ -69,7 +68,7 @@ export class DocumentService {
         pageCount = pdfRes.pageCount;
         extractionMethod = 'PDF Text Extraction';
       } catch (pdfErr: any) {
-        console.warn(`[DocumentService] PDF parsing notice: ${pdfErr.message}. Attempting OCR fallback.`);
+        console.warn(`[DocumentService] PDF parsing notice: ${pdfErr.message}. Attempting OCR fallback...`);
         try {
           const ocrRes = await ocrService.performOcr(file.buffer, file.mimetype);
           extractedText = ocrRes.text;
@@ -109,10 +108,31 @@ export class DocumentService {
    */
   public async processDocument(file: Express.Multer.File): Promise<ProcessedDocument> {
     const startTime = Date.now();
-    const extracted = await this.extractDocumentText(file);
+    console.log(`[DocumentProcessing] Stage 1/3: Text extraction started for '${file.originalname}' (${file.size} bytes, ${file.mimetype})...`);
 
-    const aiAnalysis = await aiService.analyzeDocument(extracted.extractedText, file.originalname);
+    let extracted;
+    try {
+      extracted = await this.extractDocumentText(file);
+      console.log(`[DocumentProcessing] Stage 1/3 Complete: ${extracted.extractionMethod} | ${extracted.wordCount} words | ${extracted.pageCount} pages.`);
+    } catch (extErr: any) {
+      console.error(`[DocumentProcessing] Stage 1/3 Failed (Text Extraction): ${extErr.message}`);
+      extErr.stage = 'Stage 1/3: Text Extraction';
+      throw extErr;
+    }
+
+    console.log(`[DocumentProcessing] Stage 2/3: AI processing started...`);
+    let aiAnalysis;
+    try {
+      aiAnalysis = await aiService.analyzeDocument(extracted.extractedText, file.originalname);
+      console.log(`[DocumentProcessing] Stage 2/3 Complete: Generated title '${aiAnalysis.title}'.`);
+    } catch (aiErr: any) {
+      console.error(`[DocumentProcessing] Stage 2/3 Failed (AI Processing): ${aiErr.message}`);
+      aiErr.stage = 'Stage 2/3: AI Processing';
+      throw aiErr;
+    }
+
     const processingTimeMs = Date.now() - startTime;
+    console.log(`[DocumentProcessing] Stage 3/3: Finalizing processed document model (Duration: ${processingTimeMs}ms)...`);
 
     const processedDoc: ProcessedDocument = {
       id: `doc_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
@@ -136,6 +156,7 @@ export class DocumentService {
 
     // Store in memory for direct URL / refresh persistence
     this.storeDocument(processedDoc);
+    console.log(`[DocumentProcessing] Stage 3/3 Complete: Document ${processedDoc.id} ready.`);
 
     return processedDoc;
   }

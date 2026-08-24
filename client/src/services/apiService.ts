@@ -4,6 +4,29 @@ export class ApiService {
   private baseUrl = '/api';
 
   /**
+   * Safely parses JSON response, preventing unexpected token errors if Vercel or server returns HTML.
+   */
+  private async safeJsonResponse(response: Response, defaultErrorMessage: string): Promise<any> {
+    const contentType = response.headers.get('content-type') || '';
+    const text = await response.text();
+
+    if (contentType.includes('application/json') || (text.trim().startsWith('{') && text.trim().endsWith('}'))) {
+      try {
+        return JSON.parse(text);
+      } catch (_) {
+        // Fallthrough to safe error handling below
+      }
+    }
+
+    // Handle HTML error pages or non-JSON responses from server/Vercel
+    if (!response.ok) {
+      throw new Error('Document processing service is temporarily unavailable. Please try again.');
+    }
+
+    throw new Error(defaultErrorMessage);
+  }
+
+  /**
    * Uploads file to backend for extraction and AI analysis.
    */
   public async uploadDocument(file: File): Promise<ProcessedDocument> {
@@ -15,7 +38,7 @@ export class ApiService {
       body: formData,
     });
 
-    const result = await response.json();
+    const result = await this.safeJsonResponse(response, 'Failed to process and analyze the uploaded document.');
 
     if (!response.ok || !result.success) {
       throw new Error(result.error || 'Failed to process and analyze the uploaded document.');
@@ -36,7 +59,7 @@ export class ApiService {
       body: formData,
     });
 
-    const result = await response.json();
+    const result = await this.safeJsonResponse(response, 'Failed to extract text from document.');
     if (!response.ok || !result.success) {
       throw new Error(result.error || 'Failed to extract text from document.');
     }
@@ -54,7 +77,7 @@ export class ApiService {
       body: JSON.stringify({ text, length, fileName }),
     });
 
-    const result = await response.json();
+    const result = await this.safeJsonResponse(response, 'Failed to generate summary.');
     if (!response.ok || !result.success) {
       throw new Error(result.error || 'Failed to generate summary.');
     }
@@ -68,9 +91,12 @@ export class ApiService {
   public async fetchDocumentById(id: string): Promise<ProcessedDocument | null> {
     try {
       const response = await fetch(`${this.baseUrl}/documents/${id}`);
-      const result = await response.json();
-      if (response.ok && result.success) {
-        return result.data;
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        const result = await response.json();
+        if (response.ok && result.success) {
+          return result.data;
+        }
       }
     } catch (e) {
       console.warn(`[ApiService] Failed to fetch document ${id} from server.`);

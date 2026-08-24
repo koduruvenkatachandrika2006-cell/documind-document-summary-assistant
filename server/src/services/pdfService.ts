@@ -1,3 +1,4 @@
+import pdfParse from 'pdf-parse';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { cleanExtractedText } from '../utils/textHelpers.js';
 
@@ -9,10 +10,30 @@ export interface PdfExtractionResult {
 
 export class PdfService {
   /**
-   * Extracts clean text and metadata from a PDF buffer using pdfjs-dist legacy build for Node.js.
-   * Emits page markers (e.g. --- Page X ---) to support accurate page-level evidence citation.
+   * Extracts clean text and metadata from a PDF buffer.
+   * Uses pdf-parse for zero-dependency Vercel Serverless compatibility with pdfjs-dist fallback.
    */
   public async extractText(pdfBuffer: Buffer): Promise<PdfExtractionResult> {
+    console.log(`[PdfService] Starting PDF text extraction (Buffer size: ${pdfBuffer.length} bytes)...`);
+
+    // 1. Try pdf-parse (Pure Node.js JS implementation, 100% Vercel Serverless ready)
+    try {
+      const data = await pdfParse(pdfBuffer);
+      const cleaned = cleanExtractedText(data.text);
+
+      if (cleaned && cleaned.trim().length > 0) {
+        console.log(`[PdfService] pdf-parse succeeded (${data.numpages || 1} pages, ${cleaned.length} chars).`);
+        return {
+          text: cleaned,
+          pageCount: data.numpages || 1,
+          info: data.info || {}
+        };
+      }
+    } catch (parseErr: any) {
+      console.warn(`[PdfService] pdf-parse notice: ${parseErr.message}. Attempting pdfjs-dist fallback...`);
+    }
+
+    // 2. Fallback to pdfjs-dist if pdf-parse fails or returns empty
     try {
       const data = new Uint8Array(pdfBuffer);
       const loadingTask = pdfjsLib.getDocument({ data, disableFontFace: true });
@@ -36,6 +57,7 @@ export class PdfService {
         throw new Error('PDF contains no selectable text. It may be a scanned document requiring OCR.');
       }
 
+      console.log(`[PdfService] pdfjs-dist succeeded (${pageCount} pages, ${cleaned.length} chars).`);
       return {
         text: cleaned,
         pageCount,
