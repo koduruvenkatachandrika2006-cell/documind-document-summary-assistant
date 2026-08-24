@@ -130,11 +130,13 @@ export function App() {
       const blob = await response.blob();
       const file = new File([blob], fileName, { type: mimeType });
 
-      await handleFileSelected(file);
+      setSelectedFile(file);
+      const result = await apiService.uploadDocument(file);
+      setActiveDocument(result);
     } catch (err: any) {
-      console.warn(`[App] Sample file fetch failed: ${err.message}. Using sample fallback.`);
-      const targetDoc = sampleType === 'proposal' ? SAMPLE_PROPOSAL_DOC : SAMPLE_RECEIPT_DOC;
-      setActiveDocument(targetDoc);
+      console.warn(`[App] Sample processing notice: ${err.message}`);
+      setErrorMessage(err.message || 'Scanned document OCR could not be completed. Please try another image.');
+    } finally {
       setIsProcessing(false);
     }
   };
