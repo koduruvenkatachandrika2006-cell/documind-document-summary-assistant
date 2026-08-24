@@ -554,11 +554,12 @@ export function enforceWordCount(text: string, minWords: number, maxWords: numbe
       );
     }
 
-    for (const exp of expansionPool) {
-      if (calculateWordCount(cleaned) >= minWords) break;
-      if (!cleaned.includes(exp.trim())) {
-        cleaned += exp;
-      }
+    let expIndex = 0;
+    while (calculateWordCount(cleaned) < minWords && expansionPool.length > 0) {
+      const exp = expansionPool[expIndex % expansionPool.length];
+      cleaned += exp;
+      expIndex++;
+      if (expIndex > 25) break;
     }
   }
 
