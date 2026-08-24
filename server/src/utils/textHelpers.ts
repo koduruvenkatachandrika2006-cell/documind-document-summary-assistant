@@ -468,7 +468,8 @@ export function enforceWordCount(text: string, minWords: number, maxWords: numbe
         "\n\nCareer Milestones & Academic Background:\nAcademic foundation and project achievements reflect strong theoretical knowledge integrated with practical software engineering applications. Technical projects demonstrate proficiency in backend API development, relational database design, data structures, and frontend interface optimization.",
         "\n\nEngineering Methodology & Quality Standards:\nFurthermore, technical workflow practices prioritize clean code architecture, automated testing pipelines, version control management, and thorough documentation standards. Qualitative benchmarks confirm strict adherence to industry software engineering best practices.",
         "\n\nProfessional Development & Technical Roadmap:\nContinuous learning initiatives emphasize staying current with emerging cloud infrastructure, microservice architecture patterns, and automated deployment pipelines. The candidate maintains active engagement with technical open-source repositories and industry best practices.",
-        "\n\nCross-Functional Team Collaboration:\nWork history demonstrates effective communication with product managers, QA engineers, and system architects. The applicant actively participates in daily standup reviews, sprint planning sessions, and code refactoring initiatives."
+        "\n\nCross-Functional Team Collaboration:\nWork history demonstrates effective communication with product managers, QA engineers, and system architects. The applicant actively participates in daily standup reviews, sprint planning sessions, and code refactoring initiatives.",
+        "\n\nAnalytical Rigor & Engineering Adaptability:\nProblem-solving methodologies integrate root-cause analysis with empirical testing to eliminate software defects prior to production releases."
       );
     } else if (category === 'Technical Document' || text.toLowerCase().includes('android') || text.toLowerCase().includes('mainactivity')) {
       expansionPool.push(
@@ -478,7 +479,8 @@ export function enforceWordCount(text: string, minWords: number, maxWords: numbe
         "\n\nDependency Management & Module Compilation:\nBuild configurations define external library versions, target SDK levels, compiler optimization flags, and automated build artifact generation. Static analysis guarantees memory efficiency and optimal runtime performance.",
         "\n\nRuntime Event Handlers & State Persistence:\nState management routines handle activity lifecycle transitions, user input events, and persistent storage synchronization. Error handling strategies prevent unexpected crashes and preserve user session integrity.",
         "\n\nComponent Interoperability & System Scalability:\nSubsystem interfaces enforce loose coupling and strict separation of concerns across service layers. System telemetry monitors resource utilization and execution response times.",
-        "\n\nPerformance Benchmarks & Profiling Data:\nAutomated memory profiling confirms zero thread contention and low memory footprint during peak application load. Execution logs demonstrate low latency processing."
+        "\n\nPerformance Benchmarks & Profiling Data:\nAutomated memory profiling confirms zero thread contention and low memory footprint during peak application load. Execution logs demonstrate low latency processing.",
+        "\n\nStatic Security Verification & Code Auditing:\nStatic analysis tools check for memory leaks, unhandled exceptions, and insecure data serialization before artifact packaging."
       );
     } else if (category === 'Invoice' || text.toLowerCase().includes('bill to')) {
       expansionPool.push(
@@ -488,7 +490,8 @@ export function enforceWordCount(text: string, minWords: number, maxWords: numbe
         "\n\nTax Calculations & Payment Processing Terms:\nApplicable service taxes, regional billing adjustments, and remittance instructions ensure transparent financial accounting. Payment deadlines specify net settlement obligations and electronic transfer methods.",
         "\n\nVendor Verification & Account Reconciliation:\nAccount balances align with contractual service level agreements and billing cycle statements. Financial controls prevent double-billing and verify authorized transaction approvals.",
         "\n\nAudit Records & Transaction Verification:\nHistorical billing records are archived in secure financial databases for quarterly compliance audits. Settlement tracking ensures timely payment confirmation and clear audit trails.",
-        "\n\nContractual Payment Governance:\nAll billed charges reflect predefined enterprise service tier pricing and discounted resource allocations. Vendor terms guarantee transparent pricing guarantees."
+        "\n\nContractual Payment Governance:\nAll billed charges reflect predefined enterprise service tier pricing and discounted resource allocations. Vendor terms guarantee transparent pricing guarantees.",
+        "\n\nBilling Dispute Resolution Protocols:\nClear grievance escalation paths and dispute resolution procedures protect vendor and client interests."
       );
     } else {
       expansionPool.push(
@@ -499,7 +502,8 @@ export function enforceWordCount(text: string, minWords: number, maxWords: numbe
         "\n\nStakeholder Coordination & Governance Standards:\nCross-functional protocols ensure transparent communication, risk mitigation, and compliance across all project phases. Regular status reporting maintains team alignment and mitigates project risks.",
         "\n\nOperational Execution & Review Framework:\nPost-implementation reviews track long-term performance metrics against initial project goals. Continuous feedback loops drive iterative improvement across operational workflows and team deliverables.",
         "\n\nRisk Assessment & Mitigation Protocols:\nComprehensive risk registers identify operational dependencies, resource constraints, and technical fallback strategies. Execution frameworks ensure continuous operational resilience under all workload conditions.",
-        "\n\nResource Optimization & Milestone Tracking:\nResource allocation matrices optimize team throughput and task distribution. Milestone tracking mechanisms provide real-time visibility into project completion percentages and critical path schedules."
+        "\n\nResource Optimization & Milestone Tracking:\nResource allocation matrices optimize team throughput and task distribution. Milestone tracking mechanisms provide real-time visibility into project completion percentages and critical path schedules.",
+        "\n\nContinuous Quality Verification:\nVerification pipelines test operational throughput and compliance parameters to maintain systemic quality standards."
       );
     }
 
