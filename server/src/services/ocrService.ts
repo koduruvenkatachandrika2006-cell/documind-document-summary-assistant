@@ -39,7 +39,7 @@ export class OcrService {
   public async performOcr(imageBuffer: Buffer, mimeType: string): Promise<OcrResult> {
     console.log(`[OcrService] Starting OCR recognition (Buffer size: ${imageBuffer.length} bytes, MIME: ${mimeType})...`);
 
-    const timeoutMs = 6000;
+    const timeoutMs = 15000;
     const timeoutPromise = new Promise<never>((_, reject) => {
       setTimeout(() => reject(new Error("Scanned document OCR processing timed out. Please upload a clearer image or use a PDF file.")), timeoutMs);
     });
