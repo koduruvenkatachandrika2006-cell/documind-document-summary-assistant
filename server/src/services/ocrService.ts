@@ -133,11 +133,8 @@ export class OcrService {
         confidence: Math.round(data.confidence || 85)
       };
     } catch (error: any) {
-      console.warn(`[OcrService Bounded Fallback] ${error.message || error}. Returning resilient extraction.`);
-      return {
-        text: `Scanned Document Content (${mimeType || 'image/png'}). This scanned image document was uploaded for automated document analysis and executive summarization. Total payload size: ${imageBuffer.length} bytes.`,
-        confidence: 75
-      };
+      console.warn(`[OcrService Exception] ${error.message || error}`);
+      throw new Error(error.message || 'Unable to extract readable text from this image document. Please upload a clearer image.');
     } finally {
       if (worker) {
         try {
