@@ -617,19 +617,19 @@ export function generateHeuristicAnalysis(text: string, fileName: string): {
 
   if (isPersonImage || isInsufficientText(cleaned)) {
     const isPerson = isPersonImage || lowerContent.includes('person') || lowerContent.includes('portrait') || lowerContent.includes('profile');
-    const titleStr = isPerson ? 'Person Portrait & Identity Profile Image' : (title || 'Uploaded Document');
+    const titleStr = isPerson ? 'Person Photograph' : (title || 'Uploaded Document');
     const domainStr: DocumentCategory = isPerson ? 'Person Profile / Identity Image' : category;
 
     const shortOverview = isPerson
-      ? `Overview:\nThe uploaded image presents a person's portrait photograph and identity profile image. The document features clear visual orientation, personal identity attributes, and portrait formatting suitable for candidate identification and profile verification.`
+      ? `Overview:\nA photograph showing a person. The image presents a portrait view with visible subject framing, lighting composition, and identity profile attributes. No readable document text was detected in the photograph.`
       : `Overview:\nThe document '${titleStr}' presents visual formatting, graphical elements, or image-based layout content. The structure contains specialized visual design parameters requiring structural review.`;
 
     const mediumOverview = isPerson
-      ? `Overview:\nThe document is a person's portrait and identity profile photograph. Technical image evaluation confirms clear visual presentation, face/portrait orientation, and identity profile attributes.\n\nKey Content Breakdown:\nVisual analysis identifies personal profile features, candidate portrait alignment, and identity presentation formatting. The visual quality supports candidate identification and profile verification.\n\nDetailed Content:\nThe document structure focuses on personal identification and profile image presentation. Reviewers can confirm visual identity parameters, image resolution, and candidate profile alignment across verification workflows.`
+      ? `Overview:\nA photograph showing a person. Visual processing confirms a portrait image with clear subject framing and background orientation.\n\nVisible Content Breakdown:\n- Composition & Framing: Subject is positioned in portrait orientation with visible lighting and background features.\n- Image Attributes: Clear resolution and visual contrast suitable for identity profile records.\n- Text Content: The image contains little or no readable document text.`
       : `Overview:\nThe document '${titleStr}' consists of visual layout parameters, image content, or graphical elements. Technical processing confirms successful document uploading and layout analysis.\n\nKey Content Breakdown:\nDocument analysis identifies structured visual formatting, page layout parameters, and graphical design elements. Visual elements prioritize scannable document presentation.\n\nDetailed Content:\nThe document structure is organized into visual sections and graphical layout components. Operational guidance recommends reviewing visual contrast parameters for detailed text extraction.`;
 
     const longOverview = isPerson
-      ? `Executive Overview:\nThe uploaded image provides a personal portrait and identity profile photograph. Content evaluation confirms clear visual presentation, person identification parameters, and candidate profile formatting.\n\nCore Analysis & Key Findings:\nDetailed visual analysis highlights portrait alignment, identity document presentation, and personal profile parameters. The image quality satisfies qualitative benchmarks for candidate profile reviews.\n\nDetailed Specifications & Content:\nOperational review confirms valid image formatting for personal identification workflows. Recommendations support integrating the candidate portrait into professional resume profiles, ATS applications, and verification systems.`
+      ? `Executive Overview:\nA photograph showing a person. Content evaluation confirms a portrait orientation image with clear visual framing, subject lighting, and identity profile attributes.\n\nVisible Content & Visual Analysis:\nDetailed visual inspection identifies subject position, image composition, and background parameters. The photograph maintains clear resolution and qualitative contrast for profile presentation.\n\nTechnical Specifications:\nNo readable document text or resume information was detected in this image. Operational guidelines recommend pairing this photograph with a text-based document if detailed resume information is required.`
       : `Executive Overview:\nThe document '${titleStr}' has been successfully uploaded and processed. Content analysis indicates visual layout parameters, image content, and graphical page formatting.\n\nCore Analysis & Key Findings:\nDetailed structural evaluation confirms valid page dimensions and layout components. Visual design features emphasize graphical presentation and structured layout design.\n\nDetailed Specifications & Content:\nOperational review outlines key parameters for visual document inspection. Reviewers are encouraged to evaluate document contrast and font resolution for optimal readability.`;
 
     return {
@@ -640,10 +640,10 @@ export function generateHeuristicAnalysis(text: string, fileName: string): {
         long: enforceWordCount(longOverview, 300, 450, domainStr, titleStr)
       },
       keyPoints: isPerson ? [
-        { category: 'Finding', point: 'Uploaded document is identified as a person portrait / profile photograph.' },
-        { category: 'Requirement', point: 'Presents clear face and portrait alignment formatted for candidate identity records.' },
-        { category: 'Objective', point: 'Supports candidate profile verification, ATS application records, and identity reviews.' },
-        { category: 'Conclusion', point: 'Visual image quality satisfies qualitative benchmarks for identity profile records.' }
+        { category: 'Finding', point: 'Uploaded image is identified as a Person Photograph.' },
+        { category: 'Requirement', point: 'Subject is framed in portrait orientation with clear lighting and background.' },
+        { category: 'Objective', point: 'Image contains little or no readable document text.' },
+        { category: 'Conclusion', point: 'Visual quality is suitable for profile presentation and identity records.' }
       ] : [
         { category: 'Finding', point: `Document '${titleStr}' uploaded and analyzed successfully.` },
         { category: 'Requirement', point: 'Presents visual page layout parameters, graphical components, or image content.' },
@@ -651,9 +651,9 @@ export function generateHeuristicAnalysis(text: string, fileName: string): {
         { category: 'Conclusion', point: 'Document structure supports operational review and layout inspection.' }
       ],
       improvements: isPerson ? [
-        { category: 'Clarity', suggestion: 'Consider pairing this profile photograph with a written resume/CV document for complete ATS evaluation.' },
-        { category: 'Structure', suggestion: 'Ensure consistent lighting, high contrast, and neutral background for official identity records.' },
-        { category: 'Actionability', suggestion: 'Include candidate contact information alongside profile pictures for formal submission.' }
+        { category: 'Clarity', suggestion: 'Consider pairing this photograph with a written resume/CV if document text evaluation is required.' },
+        { category: 'Structure', suggestion: 'Ensure consistent lighting and neutral background for official identity records.' },
+        { category: 'Actionability', suggestion: 'No document text detected; attach a text file for document summarization.' }
       ] : [
         { category: 'Clarity', suggestion: 'Consider providing a higher-contrast document or image for expanded OCR text extraction.' },
         { category: 'Structure', suggestion: 'It may help to add a text-based summary header near the top of the file.' },

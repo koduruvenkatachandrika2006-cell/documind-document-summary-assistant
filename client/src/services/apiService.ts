@@ -73,11 +73,6 @@ export class ApiService {
         try { await worker.terminate(); } catch (_) {}
       }
     }
-
-    if (file.name.includes('scanned_invoice') || file.name.includes('sample_scanned')) {
-      return `GLOBAL CLOUD SERVICES INC.\nINVOICE #INV-9842\nDate: August 15, 2026\nBill To: DocuMind Corp\n\nDescription Qty Rate Amount\n------------------------------------------------\nCompute Node Cluster 4 $450.00 $1,800.00\nManaged AI API Gateway 1 $650.00 $650.00\nCDN Data Transfer (TB) 2 $120.00 $240.00\n------------------------------------------------\nSUBTOTAL: $2,690.00\nTAX (8%): $215.20\nTOTAL DUE: $2,905.20\nPayment Terms: Net 30 Days`;
-    }
-
     return '';
   }
 
