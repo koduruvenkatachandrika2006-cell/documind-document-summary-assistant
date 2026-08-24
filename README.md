@@ -2,6 +2,9 @@
 
 An AI-powered web application that allows users to upload PDF or image documents, extract text using vector parsing or OCR, and generate intelligent summaries, key points, and actionable improvement suggestions.
 
+🚀 **Live Production Application**: [https://documind-document-summary-assistant.vercel.app](https://documind-document-summary-assistant.vercel.app)
+
+![Live Production](https://img.shields.io/badge/Production-Live%20Deployment-success?style=for-the-badge&logo=vercel)
 ![Stack](https://img.shields.io/badge/Stack-React%2018%20%7C%20TypeScript%20%7C%20Express%20%7C%20Gemini%20AI-indigo)
 ![Tests](https://img.shields.io/badge/Tests-Vitest%20%7C%20Passing-emerald)
 ![License](https://img.shields.io/badge/License-MIT-blue.svg)
