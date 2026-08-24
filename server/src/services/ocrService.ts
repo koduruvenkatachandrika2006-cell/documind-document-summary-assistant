@@ -1,5 +1,4 @@
 import { createWorker } from 'tesseract.js';
-import { createCanvas, loadImage } from '@napi-rs/canvas';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import fs from 'fs';
 import os from 'os';
@@ -35,79 +34,53 @@ export class OcrService {
   }
 
   /**
-   * Fast downscaling and binarization for instant Tesseract recognition.
-   */
-  private async preprocessImage(buffer: Buffer): Promise<Buffer> {
-    try {
-      const img = await loadImage(buffer);
-      const maxDim = 1200;
-      let width = img.width;
-      let height = img.height;
-
-      if (width <= maxDim && height <= maxDim) {
-        return buffer;
-      }
-
-      if (width > height) {
-        height = Math.round((height * maxDim) / width);
-        width = maxDim;
-      } else {
-        width = Math.round((width * maxDim) / height);
-        height = maxDim;
-      }
-
-      const canvas = createCanvas(width, height);
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, width, height);
-      return canvas.toBuffer('image/png');
-    } catch (err) {
-      console.warn('[OcrService Image Preprocessing Warning]', err);
-      return buffer;
-    }
-  }
-
-  /**
-   * Attempts cloud Vision OCR via Gemini 1.5 Flash if API key is present.
+   * Attempts cloud Vision OCR via Gemini 1.5/2.0 Flash if GEMINI_API_KEY is present.
    */
   private async tryGeminiVisionOcr(imageBuffer: Buffer, mimeType: string): Promise<string | null> {
     const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) return null;
+    if (!apiKey) {
+      console.warn('[OcrService] GEMINI_API_KEY not set in environment.');
+      return null;
+    }
 
-    try {
-      console.log('[OcrService] Attempting fast Gemini Vision OCR...');
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const modelsToTry = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-2.5-flash'];
+    for (const modelName of modelsToTry) {
+      try {
+        console.log(`[OcrService] Attempting Gemini Vision OCR (${modelName})...`);
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: modelName });
 
-      const result = await model.generateContent([
-        {
-          inlineData: {
-            mimeType: mimeType || 'image/png',
-            data: imageBuffer.toString('base64')
-          }
-        },
-        'Extract and return all visible text in this document image verbatim. Return only the extracted text without any commentary or code blocks.'
-      ]);
+        const result = await model.generateContent([
+          {
+            inlineData: {
+              mimeType: mimeType || 'image/png',
+              data: imageBuffer.toString('base64')
+            }
+          },
+          'Extract and transcribe all visible text in this document image verbatim. Return only the extracted text without any commentary, markdown tags, or intro text.'
+        ]);
 
-      const rawText = result.response.text();
-      const cleaned = cleanExtractedText(rawText);
-      if (cleaned && cleaned.trim().length > 10) {
-        console.log(`[OcrService] Gemini Vision OCR succeeded (${cleaned.length} chars extracted).`);
-        return cleaned;
+        const rawText = result.response.text();
+        const cleaned = cleanExtractedText(rawText);
+        if (cleaned && cleaned.trim().length > 10) {
+          console.log(`[OcrService] Gemini Vision OCR succeeded via ${modelName} (${cleaned.length} chars extracted).`);
+          return cleaned;
+        }
+      } catch (err: any) {
+        console.warn(`[OcrService] Gemini Vision OCR model ${modelName} notice:`, err.message || err);
       }
-    } catch (err: any) {
-      console.warn('[OcrService] Gemini Vision OCR unavailable, switching to local fast Tesseract path:', err.message || err);
     }
     return null;
   }
 
   /**
    * Performs Optical Character Recognition on an image buffer (PNG, JPG, JPEG).
-   * Uses Gemini Vision or fast binarized Tesseract with strict worker lifecycle termination.
+   * Uses Gemini Vision API or fast Tesseract WASM with strict worker termination.
    */
   public async performOcr(imageBuffer: Buffer, mimeType: string): Promise<OcrResult> {
     console.log(`[OcrService] Starting OCR recognition (Buffer size: ${imageBuffer.length} bytes, MIME: ${mimeType})...`);
 
-    // 1. Try Gemini Vision for sub-second cloud OCR if configured
+    // 1. Primary path: Gemini Vision Cloud API (sub-second execution, 0 native C++ dependencies)
     const visionText = await this.tryGeminiVisionOcr(imageBuffer, mimeType);
     if (visionText) {
       return {
@@ -116,12 +89,11 @@ export class OcrService {
       };
     }
 
-    // 2. Fast local Tesseract OCR with downsampling & single-pass PSM
+    // 2. Secondary path: Fast local Tesseract OCR with 35s timeout & worker cleanup
     const timeoutMs = 35000;
     let worker: any = null;
 
     try {
-      const optimizedBuffer = await this.preprocessImage(imageBuffer);
       const tempCacheDir = path.join(os.tmpdir(), 'tesseract-cache');
       const langPath = this.getLangPath();
 
@@ -134,7 +106,7 @@ export class OcrService {
         });
 
         await worker.setParameters({
-          tessedit_pageseg_mode: '3', // PSM_AUTO — Auto layout segmentation
+          tessedit_pageseg_mode: '3', // PSM_AUTO
           tessjs_create_pdf: '0',
           tessjs_create_hocr: '0',
           tessjs_create_tsv: '0',
@@ -143,7 +115,7 @@ export class OcrService {
           tessjs_create_osd: '0'
         });
 
-        const { data } = await worker.recognize(optimizedBuffer);
+        const { data } = await worker.recognize(imageBuffer);
         return data;
       })();
 
@@ -159,7 +131,7 @@ export class OcrService {
         throw new Error("We couldn't detect readable text in this image. Please upload a clearer document with visible text.");
       }
 
-      console.log(`[OcrService] Fast Tesseract OCR recognition succeeded (${cleaned.length} chars extracted).`);
+      console.log(`[OcrService] Tesseract OCR recognition succeeded (${cleaned.length} chars extracted).`);
       return {
         text: cleaned,
         confidence: Math.round(data.confidence || 85)
