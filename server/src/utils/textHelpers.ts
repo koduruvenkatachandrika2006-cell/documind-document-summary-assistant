@@ -146,11 +146,11 @@ export function isInsufficientText(text: string): boolean {
   const cleaned = cleanExtractedText(text);
   const wordCount = calculateWordCount(cleaned);
   
-  if (wordCount < 25) return true;
+  if (wordCount < 5) return true;
 
   const readableChars = (cleaned.match(/[a-zA-Z0-9\s.,!?-]/g) || []).length;
   const totalChars = cleaned.length;
-  if (totalChars > 0 && readableChars / totalChars < 0.55) {
+  if (totalChars > 0 && readableChars / totalChars < 0.35) {
     return true;
   }
 
