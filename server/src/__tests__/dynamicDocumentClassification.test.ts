@@ -97,4 +97,18 @@ WORK EXPERIENCE: Software Engineer Intern. Built automated REST APIs and full-st
     expect(analysis.summary.medium).not.toContain('Compute Node Cluster');
     expect(analysis.insights.domain).toBe('Invoice');
   });
+
+  it('8. Test 03 Project Proposal Grounding: classifies as Proposal and extracts library platform, budget, timeline, and deliverables', () => {
+    const text = `Community Library Management Platform\nProject Goal: Modernize Greenfield Community Library operations.\nScope: Book reservations, due-date reminders, and librarian dashboard.\nBudget: $18,500\nTimeline: September – October 2026\nDeliverables: Cloud platform, database schema, and staff training.\nSuccess Criteria: 99.9% uptime and zero catalog search latency.`;
+
+    const category = classifyDocument(text, 'DocuMind_Test_03_Project_Proposal.pdf');
+    expect(category).toBe('Proposal');
+
+    const analysis = generateHeuristicAnalysis(text, 'DocuMind_Test_03_Project_Proposal.pdf');
+    expect(analysis.summary.medium).toContain('Community Library');
+    expect(analysis.summary.medium).not.toContain('Scanned image-only PDF');
+    expect(analysis.summary.medium).not.toContain('No readable vector text layer was detected');
+    expect(analysis.summary.medium).not.toContain('INV-9842');
+    expect(analysis.insights.domain).toBe('Proposal');
+  });
 });

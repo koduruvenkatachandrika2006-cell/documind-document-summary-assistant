@@ -58,31 +58,31 @@ export function cleanExtractedText(text: string): string {
 }
 
 /**
- * Validates extracted text quality, rejecting binary stream noise, garbled symbols, and unreadable character data.
+ * Validates extracted text quality, rejecting raw PDF binary stream markers, null bytes, and control character streams.
+ * Allows all valid Unicode letters, numbers, punctuation, bullet points, smart quotes, and currency symbols.
  */
 export function validateExtractedText(text: string): boolean {
   if (!text || text.trim().length < 5) return false;
 
   const raw = text.trim();
 
-  // 1. Check for replacement / control / non-printable characters
-  const replacementChars = (raw.match(/[\uFFFD\0-\x08\x0B\x0C\x0E-\x1F]/g) || []).length;
-  if (replacementChars / raw.length > 0.04) {
-    console.warn(`[TextValidation] Rejected text due to high replacement/control character count (${replacementChars}/${raw.length}).`);
+  // 1. Check for replacement / null / control characters
+  const badControlChars = (raw.match(/[\uFFFD\0-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g) || []).length;
+  if (badControlChars / raw.length > 0.05) {
+    console.warn(`[TextValidation] Rejected text due to high control/replacement character count (${badControlChars}/${raw.length}).`);
     return false;
   }
 
-  // 2. Check for high density of garbled non-ASCII symbols
-  const printableAsciiAndLatin = (raw.match(/[a-zA-Z0-9\s.,!?@#%&*()_+\-=/:'"$]/g) || []).length;
-  const printableRatio = printableAsciiAndLatin / raw.length;
-  if (printableRatio < 0.70) {
-    console.warn(`[TextValidation] Rejected text due to low printable character ratio (${printableRatio.toFixed(2)}).`);
-    return false;
-  }
-
-  // 3. Reject raw PDF binary markers
-  if (raw.includes('/FlateDecode') || raw.includes('/FontDescriptor') || /^\s*%PDF-/i.test(raw)) {
+  // 2. Reject raw PDF binary syntax markers
+  if (raw.includes('/FlateDecode') || raw.includes('/FontDescriptor') || raw.includes('/MediaBox') || /^\s*%PDF-/i.test(raw)) {
     console.warn(`[TextValidation] Rejected text matching raw PDF syntax.`);
+    return false;
+  }
+
+  // 3. Ensure text contains valid alphanumeric content
+  const alphanumericCount = (raw.match(/[\p{L}\p{N}]/gu) || []).length;
+  if (alphanumericCount < 3) {
+    console.warn(`[TextValidation] Rejected text due to insufficient alphanumeric content (${alphanumericCount}).`);
     return false;
   }
 
