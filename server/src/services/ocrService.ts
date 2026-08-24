@@ -12,6 +12,25 @@ export interface OcrResult {
 export class OcrService {
   private workerPromise: Promise<any> | null = null;
 
+  private getLangPath(): string {
+    const candidatePaths = [
+      path.join(process.cwd(), 'server', 'src', 'assets'),
+      path.join(process.cwd(), 'server', 'dist', 'assets'),
+      path.join(process.cwd(), 'assets'),
+      path.join(process.cwd(), 'dist', 'assets')
+    ];
+
+    for (const p of candidatePaths) {
+      if (fs.existsSync(path.join(p, 'eng.traineddata.gz'))) {
+        console.log(`[OcrService] Found local traineddata asset at: ${p}`);
+        return p;
+      }
+    }
+
+    console.warn(`[OcrService Warning] Local traineddata asset not found in candidate paths. Falling back to HTTP CDN...`);
+    return 'https://tessdata.projectnaptha.com/4.0.0_best';
+  }
+
   /**
    * Gets or initializes a cached Tesseract worker instance for fast serverless execution.
    */
@@ -19,10 +38,7 @@ export class OcrService {
     if (!this.workerPromise) {
       this.workerPromise = (async () => {
         const tempCacheDir = path.join(os.tmpdir(), 'tesseract-cache');
-        const localLangPath = path.join(process.cwd(), 'server', 'src', 'assets');
-        const langPath = fs.existsSync(path.join(localLangPath, 'eng.traineddata.gz'))
-          ? localLangPath
-          : 'https://tessdata.projectnaptha.com/4.0.0_best';
+        const langPath = this.getLangPath();
 
         const worker = await createWorker('eng', 1, {
           cachePath: tempCacheDir,
