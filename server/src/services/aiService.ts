@@ -93,7 +93,7 @@ OUTPUT MUST BE VALID JSON matching this schema:
         const userPrompt = `Document Filename: ${fileName}\n\nDocument Content:\n"""\n${text.substring(0, 25000)}\n"""`;
 
         const aiTask = model.generateContent(`${systemPrompt}\n\n${userPrompt}`);
-        const timeoutMs = 12000;
+        const timeoutMs = 20000;
         const timeoutPromise = new Promise<never>((_, reject) => {
           setTimeout(() => reject(new Error(`Gemini API call exceeded serverless limit (${timeoutMs}ms)`)), timeoutMs);
         });
