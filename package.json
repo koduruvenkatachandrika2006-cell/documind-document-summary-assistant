@@ -9,7 +9,7 @@
     "dev:client": "npx vite --config client/vite.config.ts",
     "dev": "npx concurrently npm:dev:server npm:dev:client",
     "build:client": "npx vite build --config client/vite.config.ts",
-    "build:server": "npx tsc -p server/tsconfig.json && npx tsx -e \"import fs from 'fs'; import path from 'path'; const srcDir = path.join(process.cwd(), 'server', 'src', 'assets'); const distDir = path.join(process.cwd(), 'server', 'dist', 'assets'); if (!fs.existsSync(distDir)) fs.mkdirSync(distDir, { recursive: true }); fs.copyFileSync(path.join(srcDir, 'eng.traineddata.gz'), path.join(distDir, 'eng.traineddata.gz')); console.log('Successfully copied eng.traineddata.gz asset to server/dist/assets');\"",
+    "build:server": "npx tsc -p server/tsconfig.json && npx tsx -e \"import fs from 'fs'; import path from 'path'; const srcFile = path.join(process.cwd(), 'server', 'src', 'assets', 'eng.traineddata.gz'); const distDir = path.join(process.cwd(), 'server', 'dist', 'assets'); if (fs.existsSync(srcFile)) { if (!fs.existsSync(distDir)) fs.mkdirSync(distDir, { recursive: true }); fs.copyFileSync(srcFile, path.join(distDir, 'eng.traineddata.gz')); console.log('Successfully copied eng.traineddata.gz asset to server/dist/assets'); }\"",
     "build": "npm run build:client && npm run build:server",
     "start": "node server/dist/index.js",
     "lint": "npx tsc -p server/tsconfig.json --noEmit",
