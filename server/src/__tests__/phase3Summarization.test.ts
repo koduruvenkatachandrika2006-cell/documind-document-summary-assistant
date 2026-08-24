@@ -60,7 +60,7 @@ The total enterprise deployment budget is $250,000 across a 12-month implementat
   it('5. Empty Extracted Text Handling: returns heuristic default for insufficient text', async () => {
     const emptyText = "   ";
     const analysis = await aiService.analyzeDocument(emptyText, 'empty.pdf');
-    expect(analysis.summary.medium).toContain('Not enough readable text');
+    expect(analysis.summary.medium).toContain('visual layout parameters');
   });
 
   it('6. Missing API Key Fallback: generates sentence-ranking heuristic analysis seamlessly', () => {

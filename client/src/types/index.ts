@@ -33,7 +33,7 @@ export interface ProcessedDocument {
   wordCount: number;
   characterCount: number;
   estimatedReadingTimeMinutes: number;
-  extractionMethod: 'PDF Text Extraction' | 'Tesseract OCR Processing';
+  extractionMethod: 'PDF Text Extraction' | 'Tesseract OCR Processing' | 'Visual PDF Layout Processing' | 'Scanned PDF OCR' | 'Browser Web Worker OCR' | string;
   processingTimeMs: number;
   title: string;
   summary: StructuredSummaries;

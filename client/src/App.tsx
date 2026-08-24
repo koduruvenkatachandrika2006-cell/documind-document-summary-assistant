@@ -109,34 +109,10 @@ export function App() {
 
     try {
       setProcessingStep(2);
-      const extracted = await apiService.extractText(file);
-
       setProcessingStep(3);
-
       setProcessingStep(4);
-      const summaryResult = await apiService.summarizeText(extracted.text, 'medium', file.name);
-
+      const processedDoc = await apiService.uploadDocument(file);
       setProcessingStep(5);
-
-      const processedDoc: ProcessedDocument = {
-        id: `doc_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
-        fileName: file.name,
-        fileSize: file.size,
-        mimeType: file.type || (file.name.endsWith('.pdf') ? 'application/pdf' : 'image/png'),
-        documentType: extracted.metadata?.sourceType || (file.name.endsWith('.pdf') ? 'pdf' : 'image'),
-        extractedText: extracted.text,
-        pageCount: extracted.metadata?.pageCount || 1,
-        wordCount: extracted.metadata?.wordCount || 0,
-        characterCount: extracted.metadata?.characterCount || 0,
-        estimatedReadingTimeMinutes: extracted.metadata?.estimatedReadingTimeMinutes || 1,
-        extractionMethod: extracted.metadata?.extractionMethod || 'Text Extraction',
-        processingTimeMs: 1200,
-        title: summaryResult.title,
-        summary: summaryResult.summary,
-        keyPoints: summaryResult.keyPoints,
-        improvements: summaryResult.improvements,
-        insights: summaryResult.insights
-      };
 
       setActiveDocument(processedDoc);
     } catch (error: any) {
