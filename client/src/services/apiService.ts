@@ -102,6 +102,7 @@ export class ApiService {
             fileName: file.name,
             fileSize: file.size,
             mimeType: file.type || 'image/png',
+            documentType: 'image',
             uploadedAt: new Date().toISOString(),
             status: 'completed',
             extractedText: clientText,
@@ -109,12 +110,13 @@ export class ApiService {
             wordCount: words,
             characterCount: clientText.length,
             estimatedReadingTimeMinutes: Math.max(1, Math.ceil(words / 200)),
+            extractionMethod: 'Browser Web Worker OCR',
+            processingTimeMs: 1200,
             title: summaryRes.title,
             summary: summaryRes.summary,
             keyPoints: summaryRes.keyPoints,
             improvements: summaryRes.improvements,
-            insights: summaryRes.insights,
-            extractionMethod: 'Browser Web Worker OCR'
+            insights: summaryRes.insights
           };
 
           await this.syncStoreDocument(clientDoc);

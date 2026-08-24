@@ -29,7 +29,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
           <div className="flex flex-wrap items-center gap-2">
             <span className="px-2.5 py-1 rounded-md text-xs font-semibold bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 flex items-center gap-1">
               <FileCheck className="w-3.5 h-3.5 text-indigo-400" />
-              {document.documentType.toUpperCase()} Document
+              {(document.documentType || 'image').toUpperCase()} Document
             </span>
             <span className="px-2.5 py-1 rounded-md text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700 flex items-center gap-1">
               <Zap className="w-3.5 h-3.5 text-amber-400" />

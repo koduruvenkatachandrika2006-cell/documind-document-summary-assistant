@@ -8,7 +8,7 @@ interface InsightsDashboardProps {
 
 export const InsightsDashboard: React.FC<InsightsDashboardProps> = ({ document }) => {
   const stats = [
-    { label: 'Total Pages', value: document.pageCount, icon: Layers, sub: `${document.documentType.toUpperCase()} file` },
+    { label: 'Total Pages', value: document.pageCount, icon: Layers, sub: `${(document.documentType || 'image').toUpperCase()} file` },
     { label: 'Word Count', value: document.wordCount.toLocaleString(), icon: BookOpen, sub: `${document.characterCount.toLocaleString()} chars` },
     { label: 'Est. Reading Time', value: `~${document.estimatedReadingTimeMinutes} min`, icon: Clock, sub: 'Based on 200 wpm' },
     { label: 'Document Domain', value: document.insights.domain, icon: Tag, sub: `Complexity: ${document.insights.complexity}` },
