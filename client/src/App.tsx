@@ -25,45 +25,61 @@ export function App() {
   // Restore document from URL or LocalStorage on refresh
   useEffect(() => {
     const initPersistence = async () => {
-      const pathname = window.location.pathname;
-      const searchParams = new URLSearchParams(window.location.search);
-      let docId = searchParams.get('id');
+      try {
+        const pathname = window.location.pathname;
+        const searchParams = new URLSearchParams(window.location.search);
+        let docId = searchParams.get('id');
 
-      if (!docId && pathname.startsWith('/document/')) {
-        docId = pathname.replace('/document/', '').trim();
-      }
+        if (!docId && pathname.startsWith('/document/')) {
+          docId = pathname.replace('/document/', '').trim();
+        }
 
-      if (docId) {
-        setIsProcessing(true);
-        const serverDoc = await apiService.fetchDocumentById(docId);
-        if (serverDoc) {
-          setProcessedDoc(serverDoc);
-          localStorage.setItem('documind_cached_doc', JSON.stringify(serverDoc));
-        } else {
-          const cachedStr = localStorage.getItem('documind_cached_doc');
-          let restored = false;
-          if (cachedStr) {
-            try {
-              const cached = JSON.parse(cachedStr);
-              if (cached && cached.id === docId) {
-                setProcessedDoc(cached);
-                apiService.syncStoreDocument(cached).catch(() => {});
-                restored = true;
+        if (docId) {
+          setIsProcessing(true);
+          try {
+            const serverDoc = await apiService.fetchDocumentById(docId);
+            if (serverDoc) {
+              setProcessedDoc(serverDoc);
+              localStorage.setItem('documind_cached_doc', JSON.stringify(serverDoc));
+            } else {
+              const cachedStr = localStorage.getItem('documind_cached_doc');
+              let restored = false;
+              if (cachedStr) {
+                try {
+                  const cached = JSON.parse(cachedStr);
+                  if (cached && cached.id === docId) {
+                    setProcessedDoc(cached);
+                    apiService.syncStoreDocument(cached).catch(() => {});
+                    restored = true;
+                  }
+                } catch (e) {
+                  restored = false;
+                }
               }
-            } catch (e) {
-              restored = false;
+              if (!restored) {
+                localStorage.removeItem('documind_cached_doc');
+                if (window.location.pathname !== '/') {
+                  window.history.replaceState({}, '', '/');
+                }
+                setProcessedDoc(null);
+                setErrorMessage(null);
+              }
             }
-          }
-          if (!restored) {
+          } catch (fetchErr) {
+            console.warn('[App] fetchDocumentById notice:', fetchErr);
             localStorage.removeItem('documind_cached_doc');
             if (window.location.pathname !== '/') {
-              window.history.pushState({}, '', '/');
+              window.history.replaceState({}, '', '/');
             }
             setProcessedDoc(null);
-            setErrorMessage(null);
+          } finally {
+            setIsProcessing(false);
           }
         }
+      } catch (globalErr) {
+        console.warn('[App] Global persistence error:', globalErr);
         setIsProcessing(false);
+        setProcessedDoc(null);
       }
     };
 
@@ -211,7 +227,7 @@ ${processedDoc.improvements.map(imp => `- [${imp.category}] ${imp.suggestion}`).
       <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 pt-6 sm:pt-10 pb-12">
         
         {/* LANDING / UPLOAD VIEW */}
-        {!isProcessing && !processedDoc && !errorMessage && (
+        {!isProcessing && !processedDoc && (
           <div className="flex flex-col items-center text-center space-y-8 my-2">
             
             {/* Hero Title & Subtitle */}
