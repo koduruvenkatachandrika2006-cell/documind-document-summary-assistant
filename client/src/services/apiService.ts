@@ -35,12 +35,17 @@ export class ApiService {
     throw new Error(defaultErrorMessage);
   }
 
-  /**
-   * Helper to convert File to Base64 string for serverless-safe API calls.
-   */
   private async fileToBase64(file: File): Promise<string> {
-    const arrayBuffer = await file.arrayBuffer();
-    return Buffer.from(arrayBuffer).toString('base64');
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        const base64 = result.split(',')[1] || '';
+        resolve(base64);
+      };
+      reader.onerror = (error) => reject(error);
+      reader.readAsDataURL(file);
+    });
   }
 
   /**
