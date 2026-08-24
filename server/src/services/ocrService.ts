@@ -1,4 +1,5 @@
 import { createWorker } from 'tesseract.js';
+import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { cleanExtractedText } from '../utils/textHelpers.js';
@@ -18,8 +19,9 @@ export class OcrService {
     if (!this.workerPromise) {
       this.workerPromise = (async () => {
         const tempCacheDir = path.join(os.tmpdir(), 'tesseract-cache');
-        const langPath = process.env.VERCEL
-          ? 'https://documind-document-summary-assistant.vercel.app'
+        const localLangPath = path.join(process.cwd(), 'server', 'src', 'assets');
+        const langPath = fs.existsSync(path.join(localLangPath, 'eng.traineddata.gz'))
+          ? localLangPath
           : 'https://tessdata.projectnaptha.com/4.0.0_best';
 
         const worker = await createWorker('eng', 1, {
