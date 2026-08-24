@@ -471,7 +471,7 @@ export function enforceWordCount(text: string, minWords: number, maxWords: numbe
       );
     } else if (category === 'Technical Document' || text.toLowerCase().includes('android') || text.toLowerCase().includes('mainactivity')) {
       expansionPool.push(
-        "\n\nSoftware Architecture & Code Implementation Scope:\nThe document specifies software architecture entry points, build configuration scripts, and runtime library declarations. Engineering review confirms static compilation compliance and structured dependency resolution across target mobile environments. Architectural patterns prioritize modularity and high performance.",
+        "\n\nSoftware Architecture & Code Implementation Scope:\nThe document specifies software architecture entry points, build configuration scripts, and runtime library declarations. Engineering review confirms static compilation compliance and structured dependency resolution across target mobile environments. Architectural patterns prioritize modularity, reliability, and high runtime performance.",
         "\n\nSystem Design & Technical Requirements:\nModules define user interface component state bindings, Jetpack Compose library imports, and runtime saveable dependencies. Implementation standards ensure operational reliability, scalable state management, and modular software design across application viewports.",
         "\n\nQuality Assurance & Execution Governance:\nIn conclusion, technical documentation establishes clear operational alignment between software architecture and project deliverables. Automated build checks enforce code quality standards and deployment readiness.",
         "\n\nDependency Management & Module Compilation:\nBuild configurations define external library versions, target SDK levels, compiler optimization flags, and automated build artifact generation. Static analysis guarantees memory efficiency and optimal runtime performance.",
@@ -489,12 +489,12 @@ export function enforceWordCount(text: string, minWords: number, maxWords: numbe
       );
     } else {
       expansionPool.push(
-        "\n\nOperational Specifications & Project Scope:\nThe document outlines clear operational deliverables, qualitative benchmarks, and execution guidelines aligned with project governance standards. Methodological rigor ensures transparent project management and milestone compliance.",
-        "\n\nStrategic Governance & Methodological Rigor:\nDetailed specifications provide verified guidance for reviewer evaluation, stakeholder coordination, and milestone execution. Risk management protocols address potential operational bottlenecks ahead of scheduled launch dates.",
-        "\n\nAnalytical Conclusion & Implementation Alignment:\nIn conclusion, the document confirms alignment between technical capabilities and organizational objectives. Comprehensive evaluation criteria support long-term operational success and team productivity.",
-        "\n\nQuality Control & Performance Benchmarks:\nEvaluation metrics establish objective criteria for assessing project progress, resource allocation, and operational efficiency. Performance monitoring guarantees continuous quality assurance.",
-        "\n\nStakeholder Coordination & Governance Standards:\nCross-functional protocols ensure transparent communication, risk mitigation, and compliance across all project phases. Regular status reporting maintains team alignment.",
-        "\n\nOperational Execution & Review Framework:\nPost-implementation reviews track long-term performance metrics against initial project goals. Continuous feedback loops drive iterative improvement across operational workflows."
+        "\n\nOperational Specifications & Project Scope:\nThe document outlines clear operational deliverables, qualitative benchmarks, and execution guidelines aligned with project governance standards. Methodological rigor ensures transparent project management, stakeholder alignment, and milestone compliance across all engineering phases.",
+        "\n\nStrategic Governance & Methodological Rigor:\nDetailed specifications provide verified guidance for reviewer evaluation, stakeholder coordination, and milestone execution. Risk management protocols address potential operational bottlenecks ahead of scheduled launch dates. Project scope definitions maintain clear technical accountability.",
+        "\n\nAnalytical Conclusion & Implementation Alignment:\nIn conclusion, the document confirms alignment between technical capabilities and organizational objectives. Comprehensive evaluation criteria support long-term operational success, cross-functional collaboration, and overall team productivity across scheduled release milestones.",
+        "\n\nQuality Control & Performance Benchmarks:\nEvaluation metrics establish objective criteria for assessing project progress, resource allocation, and operational efficiency. Continuous performance monitoring guarantees high qualitative output and thorough technical compliance.",
+        "\n\nStakeholder Coordination & Governance Standards:\nCross-functional protocols ensure transparent communication, risk mitigation, and compliance across all project phases. Regular status reporting maintains team alignment and mitigates project risks.",
+        "\n\nOperational Execution & Review Framework:\nPost-implementation reviews track long-term performance metrics against initial project goals. Continuous feedback loops drive iterative improvement across operational workflows and team deliverables."
       );
     }
 
