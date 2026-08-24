@@ -176,13 +176,16 @@ export function classifyDocument(text: string, fileName: string): DocumentCatego
   if (lower.includes('invoice') || lower.includes('bill to') || lower.includes('subtotal') || lower.includes('total due')) {
     return 'Invoice';
   }
+  if (lower.includes('assignment') || lower.includes('homework') || lower.includes('problem 1') || lower.includes('task requirement') || lower.includes('question')) {
+    return 'Assignment';
+  }
   if (lower.includes('proposal') || (lower.includes('executive summary') && lower.includes('budget'))) {
     return 'Proposal';
   }
   if (lower.includes('abstract') || (lower.includes('introduction') && lower.includes('references') && lower.includes('methodology'))) {
     return 'Research Paper';
   }
-  if (lower.includes('architecture') || lower.includes('implementation') || lower.includes('function') || lower.includes('source code') || lower.includes('interface') || lower.includes('android') || lower.includes('gradle') || lower.includes('manifest') || lower.includes('mainactivity')) {
+  if (lower.includes('architecture') || lower.includes('implementation') || lower.includes('function') || lower.includes('source code') || lower.includes('interface') || lower.includes('android') || lower.includes('gradle') || lower.includes('manifest') || lower.includes('mainactivity') || lower.includes('class') || lower.includes('import')) {
     return 'Technical Document';
   }
 
@@ -574,6 +577,7 @@ export function generateHeuristicAnalysis(text: string, fileName: string): {
 
   const category = classifyDocument(cleaned, fileName);
 
+  // Extract clean grammatical sentences from actual document/image content
   const cleanSentences = sanitizePrivacyInfo(cleaned)
     .split(/(?<=[.!?])\s+|\n+/)
     .map(s => s.trim())
@@ -588,32 +592,37 @@ export function generateHeuristicAnalysis(text: string, fileName: string): {
 
   if (category === 'Resume / CV' || lowerContent.includes('koduru') || lowerContent.includes('chandrika') || lowerContent.includes('experience')) {
     const nameStr = candidateName || title;
-    coreFocusProse = `This document presents the professional resume of ${nameStr}, detailing technical competencies, academic qualifications, and engineering project implementations.`;
+    coreFocusProse = `presents the professional resume of ${nameStr}, detailing technical competencies, academic qualifications, and engineering project implementations.`;
     
     const contactLine = firstLines.find(l => l.includes('@') || l.includes('LinkedIn') || l.includes('GitHub')) || '';
     detailProse = contactLine 
       ? `Applicant credentials and professional profiles: ${sanitizePrivacyInfo(contactLine)}.`
       : "Qualifications emphasize hands-on experience in software engineering, data structures, and modern application frameworks.";
   } else if (lowerContent.includes('mainactivity') || lowerContent.includes('gradle') || lowerContent.includes('manifest') || lowerContent.includes('android')) {
-    coreFocusProse = "The document presents an Android application codebase snapshot featuring core source files (MainActivity.kt), project configuration scripts (build.gradle.kts), and application manifest definitions (AndroidManifest.xml).";
+    coreFocusProse = "presents an Android application codebase snapshot featuring core source files (MainActivity.kt), project configuration scripts (build.gradle.kts), and application manifest definitions (AndroidManifest.xml).";
     detailProse = "Key technical components include runtime saveable Android dependencies (runtime-saveable-android:1.10.4), UI component state bindings, and Android build manifest registration.";
   } else if (lowerContent.includes('ats') || lowerContent.includes('industry tone match')) {
-    coreFocusProse = "The document outlines a targeted prompt for ATS resume optimization: 'Based on the tone, language, and core values of leading industry companies, rewrite resume summary and skills sections to align with industry standards.'";
+    coreFocusProse = "outlines a targeted prompt for ATS resume optimization: 'Based on the tone, language, and core values of leading industry companies, rewrite resume summary and skills sections to align with industry standards.'";
     detailProse = "Key details focus on tailoring applicant qualifications, eliminating generic phrasing, and structuring technical skills to match target job descriptions.";
   } else if (category === 'Invoice' || lowerContent.includes('bill to') || lowerContent.includes('amount due')) {
-    coreFocusProse = "The document specifies financial invoice details including billing references, vendor information, itemized charges, and payment due dates.";
+    coreFocusProse = "specifies financial invoice details including billing references, vendor information, itemized charges, and payment due dates.";
     detailProse = "Line item breakdown highlights compute node clusters, API gateway usage, and data transfer fees with total balance calculations.";
   } else if (cleanSentences.length > 0) {
-    coreFocusProse = cleanSentences[0];
-    detailProse = cleanSentences[1] || cleanSentences[0];
+    coreFocusProse = cleanSentences.slice(0, 2).join(' ');
+    detailProse = cleanSentences.slice(2, 6).join(' ') || cleanSentences[0];
   } else {
-    coreFocusProse = `The document details primary specifications, operational objectives, and structured content for ${title}.`;
+    coreFocusProse = `details primary specifications, operational objectives, and structured content for ${title}.`;
     detailProse = `Content analysis identifies core operational deliverables and qualitative standards for ${category.toLowerCase()}.`;
   }
 
-  const rawShort = `Executive Summary:\nThis document (${title}) represents a ${category.toLowerCase()} detailing primary specifications, operational objectives, and core content.\n\nCore Focus:\n${coreFocusProse}`;
-  const rawMedium = `Executive Summary:\nThis document (${title}) represents a ${category.toLowerCase()} detailing primary specifications, operational objectives, and core content.\n\nCore Focus:\n${coreFocusProse}\n\nKey Content Breakdown:\n${detailProse}`;
-  const rawLong = `Executive Overview:\nThis document (${title}) represents a ${category.toLowerCase()} detailing primary specifications, operational objectives, and core content.\n\nCore Focus & Detailed Analysis:\n${coreFocusProse}\n\nKey Content Breakdown:\n${detailProse}\n\nStrategic Summary & Deliverables:\nThe document outlines clear execution guidelines and qualitative benchmarks aligned with project governance standards.`;
+  // 100% Document & Image Content Specific Summaries (NO boilerplate generic filler!)
+  const overviewLine = cleanSentences[0] || coreFocusProse;
+  const secondaryLines = cleanSentences.slice(1, 4).join(' ') || detailProse;
+  const deeperLines = cleanSentences.slice(4, 9).join(' ') || secondaryLines;
+
+  const rawShort = `Overview:\n${overviewLine}\n\nCore Takeaways:\n${secondaryLines}`;
+  const rawMedium = `Overview:\n${overviewLine}\n\nKey Content Breakdown:\n${secondaryLines}\n\nDetailed Content:\n${deeperLines}`;
+  const rawLong = `Executive Overview:\n${overviewLine}\n\nCore Analysis & Key Findings:\n${secondaryLines}\n\nDetailed Specifications & Content:\n${deeperLines}`;
 
   const keyPoints: KeyPoint[] = [];
   const seenPoints = new Set<string>();
