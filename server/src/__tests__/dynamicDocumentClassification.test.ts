@@ -80,4 +80,21 @@ WORK EXPERIENCE: Software Engineer Intern. Built automated REST APIs and full-st
     expect(analysis.summary.medium).not.toContain('INV-9842');
     expect(analysis.insights.domain).toBe('General Document');
   });
+
+  it('7. Real Invoice PDF Grounding (Test 2 Verification): extracts exact invoice numbers, vendor, customer, and amounts', () => {
+    const text = `Invoice INV-2048\nVendor: NorthStar Cloud Services\nCustomer: Acme Digital Ltd.\nDate: August 20, 2026\nCloud Hosting — 2 units — $400 each = $800\nSupport Plan — 1 unit — $200\nSubtotal: $1,000\nTax: $100\nTotal: $1,100`;
+
+    const category = classifyDocument(text, 'invoice_INV-2048.pdf');
+    expect(category).toBe('Invoice');
+
+    const analysis = generateHeuristicAnalysis(text, 'invoice_INV-2048.pdf');
+    expect(analysis.title).toContain('INV-2048');
+    expect(analysis.summary.medium).toContain('INV-2048');
+    expect(analysis.summary.medium).toContain('NorthStar Cloud Services');
+    expect(analysis.summary.medium).toContain('Acme Digital Ltd.');
+    expect(analysis.summary.medium).not.toContain('INV-9842');
+    expect(analysis.summary.medium).not.toContain('DocuMind Corporation');
+    expect(analysis.summary.medium).not.toContain('Compute Node Cluster');
+    expect(analysis.insights.domain).toBe('Invoice');
+  });
 });

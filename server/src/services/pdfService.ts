@@ -3,6 +3,8 @@ import { PDFDocument, PDFName, PDFRawStream } from 'pdf-lib';
 import { ocrService } from './ocrService.js';
 import { cleanExtractedText } from '../utils/textHelpers.js';
 
+import zlib from 'zlib';
+
 export interface PdfExtractionResult {
   text: string;
   pageCount: number;
@@ -11,6 +13,44 @@ export interface PdfExtractionResult {
 }
 
 export class PdfService {
+  /**
+   * Decompresses raw PDF Flate streams to extract string literals when pdf-parse encounters encoding issues
+   */
+  private extractRawStreamText(pdfBuffer: Buffer): string {
+    try {
+      let combined = '';
+      const str = pdfBuffer.toString('binary');
+      const matches = str.match(/stream[\r\n]+([\s\S]*?)endstream/gi);
+      if (matches) {
+        for (const m of matches) {
+          const content = m.replace(/^stream[\r\n]+/, '').replace(/[\r\n]+endstream$/, '');
+          const buf = Buffer.from(content, 'binary');
+          let decompressed: Buffer | null = null;
+          try {
+            decompressed = zlib.inflateSync(buf);
+          } catch (_) {
+            try {
+              decompressed = zlib.unzipSync(buf);
+            } catch (e) {}
+          }
+          const textChunk = (decompressed || buf).toString('utf-8');
+          const strings = textChunk.match(/\(([^()]{2,120})\)/g);
+          if (strings) {
+            for (const s of strings) {
+              const cleanStr = s.slice(1, -1).replace(/\\[nrtbf()]/g, ' ').trim();
+              if (cleanStr.length > 2 && /[a-zA-Z0-9]/.test(cleanStr)) {
+                combined += cleanStr + ' ';
+              }
+            }
+          }
+        }
+      }
+      return cleanExtractedText(combined);
+    } catch (e) {
+      return '';
+    }
+  }
+
   /**
    * Helper to extract raw image stream buffers embedded inside scanned PDFs
    */
@@ -37,7 +77,7 @@ export class PdfService {
 
   /**
    * Extracts clean text and metadata from a PDF buffer using serverless-safe pdf-parse and pdf-lib.
-   * Handles vector PDFs, scanned image-only PDFs, and visual layout documents with zero-fail resilience.
+   * Handles vector PDFs, scanned image-only PDFs, and raw PDF streams with zero sample-data leakage.
    */
   public async extractText(pdfBuffer: Buffer): Promise<PdfExtractionResult> {
     console.log(`[PdfService] Starting PDF text extraction (Buffer size: ${pdfBuffer.length} bytes)...`);
@@ -89,7 +129,19 @@ export class PdfService {
       console.warn(`[PdfService] pdf-parse normalized notice: ${normErr.message}`);
     }
 
-    // 4. Scanned PDF handling: Extract embedded image streams and run OCR on them directly
+    // 4. Try raw Flate stream text extraction
+    const rawStreamText = this.extractRawStreamText(pdfBuffer);
+    if (rawStreamText && rawStreamText.trim().length > 10) {
+      console.log(`[PdfService] PDF raw stream text extraction succeeded (${pageCount} pages, ${rawStreamText.length} chars).`);
+      return {
+        text: rawStreamText,
+        pageCount,
+        info: {},
+        extractionMethod: 'PDF Stream Text Extraction'
+      };
+    }
+
+    // 5. Scanned PDF handling: Extract embedded image streams and run OCR on them directly
     console.log(`[PdfService] Scanned PDF detected (0 vector text). Extracting embedded image streams for OCR...`);
     const embeddedImages = this.extractImagesFromPdf(pdfDoc);
     
@@ -119,13 +171,13 @@ export class PdfService {
       }
     }
 
-    // 5. Zero-Fail Fallback: Return structured document metadata for visual/graphical PDF
-    console.log(`[PdfService] Zero-Fail Fallback: Processing visual/scanned PDF layout parameters (${pageCount} pages)...`);
+    // 6. Truthful Extraction Response: Return document metadata without fake sample data
+    console.log(`[PdfService] Scanned image-only PDF with no readable vector text detected (${pageCount} pages).`);
     return {
-      text: `Scanned PDF document containing ${pageCount} ${pageCount === 1 ? 'page' : 'pages'} with visual layout parameters, image elements, and structural document formatting.`,
+      text: `Scanned image-only PDF document containing ${pageCount} ${pageCount === 1 ? 'page' : 'pages'}. No readable vector text layer was detected.`,
       pageCount,
       info: {},
-      extractionMethod: 'Visual PDF Layout Processing'
+      extractionMethod: 'Scanned PDF Processing'
     };
   }
 }

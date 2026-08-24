@@ -68,9 +68,9 @@ export class DocumentService {
         pageCount = pdfRes.pageCount;
         extractionMethod = pdfRes.extractionMethod as any || 'PDF Text Extraction';
       } catch (pdfErr: any) {
-        console.warn(`[DocumentService] PDF parsing notice: ${pdfErr.message}. Utilizing visual structure analysis...`);
-        extractedText = `Uploaded PDF document (${file.originalname}, ${file.size} bytes). Document structure, visual layout, and page parameters processed.`;
-        extractionMethod = 'Visual PDF Layout Processing';
+        console.warn(`[DocumentService] PDF parsing notice: ${pdfErr.message}.`);
+        extractedText = `Uploaded PDF document (${file.originalname}). No readable vector text layer was detected.`;
+        extractionMethod = 'Scanned PDF Processing';
       }
     } else {
       const ocrRes = await ocrService.performOcr(file.buffer, file.mimetype);
@@ -80,7 +80,7 @@ export class DocumentService {
     }
 
     if (!extractedText || extractedText.trim().length === 0) {
-      extractedText = `Uploaded ${documentType.toUpperCase()} document (${file.originalname}, ${file.size} bytes). Document structure and visual formatting parameters analyzed successfully.`;
+      extractedText = `Uploaded ${documentType.toUpperCase()} document (${file.originalname}). No readable text detected in this file.`;
     }
 
     const wordCount = calculateWordCount(extractedText);
