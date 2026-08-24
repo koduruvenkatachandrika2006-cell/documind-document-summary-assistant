@@ -36,15 +36,28 @@ export class ApiService {
   }
 
   /**
+   * Helper to convert File to Base64 string for serverless-safe API calls.
+   */
+  private async fileToBase64(file: File): Promise<string> {
+    const arrayBuffer = await file.arrayBuffer();
+    return Buffer.from(arrayBuffer).toString('base64');
+  }
+
+  /**
    * Uploads file to backend for extraction and AI analysis.
    */
   public async uploadDocument(file: File): Promise<ProcessedDocument> {
-    const formData = new FormData();
-    formData.append('document', file);
+    const base64Data = await this.fileToBase64(file);
 
     const response = await fetch(`${this.baseUrl}/upload`, {
       method: 'POST',
-      body: formData,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fileName: file.name,
+        fileSize: file.size,
+        mimeType: file.type || (file.name.endsWith('.pdf') ? 'application/pdf' : 'image/png'),
+        base64Data
+      }),
     });
 
     const result = await this.safeJsonResponse(response, 'Failed to process and analyze the uploaded document.');
@@ -60,12 +73,17 @@ export class ApiService {
    * Extract text and metadata from document file (Section 12 API Design)
    */
   public async extractText(file: File): Promise<{ text: string; metadata: any }> {
-    const formData = new FormData();
-    formData.append('document', file);
+    const base64Data = await this.fileToBase64(file);
 
     const response = await fetch(`${this.baseUrl}/extract`, {
       method: 'POST',
-      body: formData,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fileName: file.name,
+        fileSize: file.size,
+        mimeType: file.type || (file.name.endsWith('.pdf') ? 'application/pdf' : 'image/png'),
+        base64Data
+      }),
     });
 
     const result = await this.safeJsonResponse(response, 'Failed to extract text from document.');

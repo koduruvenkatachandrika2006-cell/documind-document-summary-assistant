@@ -12,6 +12,32 @@ const upload = multer({
 });
 
 /**
+ * Helper to resolve uploaded file from either Multer req.file or serverless-safe JSON Base64 body
+ */
+function extractFileObject(req: Request): Express.Multer.File | null {
+  if (req.file) return req.file;
+
+  if (req.body && req.body.base64Data) {
+    const buffer = Buffer.from(req.body.base64Data, 'base64');
+    const fileName = req.body.fileName || 'document.pdf';
+    return {
+      fieldname: 'document',
+      originalname: fileName,
+      encoding: '7bit',
+      mimetype: req.body.mimeType || (fileName.endsWith('.pdf') ? 'application/pdf' : 'image/png'),
+      buffer,
+      size: buffer.length,
+      destination: '',
+      filename: fileName,
+      path: '',
+      stream: null as any
+    };
+  }
+
+  return null;
+}
+
+/**
  * Health check endpoint
  */
 apiRouter.get('/health', (req: Request, res: Response) => {
@@ -56,22 +82,24 @@ apiRouter.post('/documents/store', (req: Request, res: Response) => {
  */
 apiRouter.post('/extract', upload.single('document'), async (req: Request, res: Response) => {
   try {
-    if (!req.file) {
+    const fileObj = extractFileObject(req);
+
+    if (!fileObj) {
       return res.status(400).json({
         success: false,
         error: 'No document file received. Please attach a PDF or image file.'
       });
     }
 
-    const extracted = await documentService.extractDocumentText(req.file);
+    const extracted = await documentService.extractDocumentText(fileObj);
 
     return res.status(200).json({
       success: true,
       text: extracted.extractedText,
       metadata: {
-        fileName: req.file.originalname,
-        fileSize: req.file.size,
-        mimeType: req.file.mimetype,
+        fileName: fileObj.originalname,
+        fileSize: fileObj.size,
+        mimeType: fileObj.mimetype,
         pageCount: extracted.pageCount,
         sourceType: extracted.documentType,
         wordCount: extracted.wordCount,
@@ -138,7 +166,9 @@ apiRouter.post('/upload', upload.single('document'), async (req: Request, res: R
   try {
     console.log(`[API Upload] POST /api/upload request received.`);
 
-    if (!req.file) {
+    const fileObj = extractFileObject(req);
+
+    if (!fileObj) {
       console.warn(`[API Upload Failure] No file in payload.`);
       return res.status(400).json({
         success: false,
@@ -146,9 +176,9 @@ apiRouter.post('/upload', upload.single('document'), async (req: Request, res: R
       });
     }
 
-    console.log(`[API Upload] Received file: '${req.file.originalname}' | MIME: ${req.file.mimetype} | Size: ${req.file.size} bytes.`);
+    console.log(`[API Upload] Received file: '${fileObj.originalname}' | MIME: ${fileObj.mimetype} | Size: ${fileObj.size} bytes.`);
 
-    const processedDoc = await documentService.processDocument(req.file);
+    const processedDoc = await documentService.processDocument(fileObj);
 
     console.log(`[API Upload Success] Document '${processedDoc.fileName}' (${processedDoc.id}) processed successfully.`);
     return res.status(200).json({
