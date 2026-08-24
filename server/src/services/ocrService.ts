@@ -39,9 +39,19 @@ export class OcrService {
   public async performOcr(imageBuffer: Buffer, mimeType: string): Promise<OcrResult> {
     console.log(`[OcrService] Starting OCR recognition (Buffer size: ${imageBuffer.length} bytes, MIME: ${mimeType})...`);
 
+    const timeoutMs = 6000;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error("Scanned document OCR processing timed out. Please upload a clearer image or use a PDF file.")), timeoutMs);
+    });
+
     try {
-      const worker = await this.getWorker();
-      const { data } = await worker.recognize(imageBuffer);
+      const ocrTask = (async () => {
+        const worker = await this.getWorker();
+        const { data } = await worker.recognize(imageBuffer);
+        return data;
+      })();
+
+      const data: any = await Promise.race([ocrTask, timeoutPromise]);
 
       const cleaned = cleanExtractedText(data.text);
       
@@ -57,7 +67,7 @@ export class OcrService {
     } catch (error: any) {
       console.error(`[OcrService Exception] ${error.message || error}`);
 
-      // Invalidate worker promise on fatal failure
+      // Invalidate worker promise on fatal failure / timeout
       this.workerPromise = null;
 
       throw new Error(error.message || 'Scanned document OCR could not be completed. Please upload a clearer image with visible text.');
