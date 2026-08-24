@@ -1,9 +1,7 @@
 import pdfParse from 'pdf-parse';
 import { PDFDocument, PDFName, PDFRawStream } from 'pdf-lib';
 import { ocrService } from './ocrService.js';
-import { cleanExtractedText } from '../utils/textHelpers.js';
-
-import zlib from 'zlib';
+import { cleanExtractedText, validateExtractedText } from '../utils/textHelpers.js';
 
 export interface PdfExtractionResult {
   text: string;
@@ -13,44 +11,6 @@ export interface PdfExtractionResult {
 }
 
 export class PdfService {
-  /**
-   * Decompresses raw PDF Flate streams to extract string literals when pdf-parse encounters encoding issues
-   */
-  private extractRawStreamText(pdfBuffer: Buffer): string {
-    try {
-      let combined = '';
-      const str = pdfBuffer.toString('binary');
-      const matches = str.match(/stream[\r\n]+([\s\S]*?)endstream/gi);
-      if (matches) {
-        for (const m of matches) {
-          const content = m.replace(/^stream[\r\n]+/, '').replace(/[\r\n]+endstream$/, '');
-          const buf = Buffer.from(content, 'binary');
-          let decompressed: Buffer | null = null;
-          try {
-            decompressed = zlib.inflateSync(buf);
-          } catch (_) {
-            try {
-              decompressed = zlib.unzipSync(buf);
-            } catch (e) {}
-          }
-          const textChunk = (decompressed || buf).toString('utf-8');
-          const strings = textChunk.match(/\(([^()]{2,120})\)/g);
-          if (strings) {
-            for (const s of strings) {
-              const cleanStr = s.slice(1, -1).replace(/\\[nrtbf()]/g, ' ').trim();
-              if (cleanStr.length > 2 && /[a-zA-Z0-9]/.test(cleanStr)) {
-                combined += cleanStr + ' ';
-              }
-            }
-          }
-        }
-      }
-      return cleanExtractedText(combined);
-    } catch (e) {
-      return '';
-    }
-  }
-
   /**
    * Helper to extract raw image stream buffers embedded inside scanned PDFs
    */
@@ -77,7 +37,7 @@ export class PdfService {
 
   /**
    * Extracts clean text and metadata from a PDF buffer using serverless-safe pdf-parse and pdf-lib.
-   * Handles vector PDFs, scanned image-only PDFs, and raw PDF streams with zero sample-data leakage.
+   * Strictly validates text quality using validateExtractedText to eliminate binary garbage and garbled streams.
    */
   public async extractText(pdfBuffer: Buffer): Promise<PdfExtractionResult> {
     console.log(`[PdfService] Starting PDF text extraction (Buffer size: ${pdfBuffer.length} bytes)...`);
@@ -97,7 +57,7 @@ export class PdfService {
     try {
       const data = await pdfParse(pdfBuffer);
       const cleaned = cleanExtractedText(data.text);
-      if (cleaned && cleaned.trim().length > 10) {
+      if (cleaned && validateExtractedText(cleaned)) {
         console.log(`[PdfService] PDF text extraction succeeded on raw buffer (${data.numpages || pageCount} pages, ${cleaned.length} chars).`);
         return {
           text: cleaned,
@@ -112,11 +72,11 @@ export class PdfService {
 
     // 3. Try pdf-parse on pdf-lib normalized/re-saved buffer
     try {
-      const normalizedBytes = await pdfDoc.save();
+      const normalizedBytes = await pdfDoc.save({ useObjectStreams: false });
       const normalizedBuffer = Buffer.from(normalizedBytes);
       const data = await pdfParse(normalizedBuffer);
       const cleaned = cleanExtractedText(data.text);
-      if (cleaned && cleaned.trim().length > 10) {
+      if (cleaned && validateExtractedText(cleaned)) {
         console.log(`[PdfService] PDF text extraction succeeded on normalized buffer (${data.numpages || pageCount} pages, ${cleaned.length} chars).`);
         return {
           text: cleaned,
@@ -129,19 +89,7 @@ export class PdfService {
       console.warn(`[PdfService] pdf-parse normalized notice: ${normErr.message}`);
     }
 
-    // 4. Try raw Flate stream text extraction
-    const rawStreamText = this.extractRawStreamText(pdfBuffer);
-    if (rawStreamText && rawStreamText.trim().length > 10) {
-      console.log(`[PdfService] PDF raw stream text extraction succeeded (${pageCount} pages, ${rawStreamText.length} chars).`);
-      return {
-        text: rawStreamText,
-        pageCount,
-        info: {},
-        extractionMethod: 'PDF Stream Text Extraction'
-      };
-    }
-
-    // 5. Scanned PDF handling: Extract embedded image streams and run OCR on them directly
+    // 4. Scanned PDF handling: Extract embedded image streams and run OCR on them directly
     console.log(`[PdfService] Scanned PDF detected (0 vector text). Extracting embedded image streams for OCR...`);
     const embeddedImages = this.extractImagesFromPdf(pdfDoc);
     
@@ -160,7 +108,7 @@ export class PdfService {
       }
 
       const cleanedOcr = cleanExtractedText(ocrCombinedText);
-      if (cleanedOcr && cleanedOcr.trim().length > 5) {
+      if (cleanedOcr && validateExtractedText(cleanedOcr)) {
         console.log(`[PdfService] Scanned PDF OCR extraction succeeded (${pageCount} pages, ${cleanedOcr.length} chars).`);
         return {
           text: cleanedOcr,
@@ -171,7 +119,7 @@ export class PdfService {
       }
     }
 
-    // 6. Truthful Extraction Response: Return document metadata without fake sample data
+    // 5. Truthful Extraction Response: Return document metadata without fake sample data or garbled binary
     console.log(`[PdfService] Scanned image-only PDF with no readable vector text detected (${pageCount} pages).`);
     return {
       text: `Scanned image-only PDF document containing ${pageCount} ${pageCount === 1 ? 'page' : 'pages'}. No readable vector text layer was detected.`,
