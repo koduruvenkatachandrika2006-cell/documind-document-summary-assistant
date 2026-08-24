@@ -18,8 +18,13 @@ export class OcrService {
     if (!this.workerPromise) {
       this.workerPromise = (async () => {
         const tempCacheDir = path.join(os.tmpdir(), 'tesseract-cache');
+        const langPath = process.env.VERCEL
+          ? 'https://documind-document-summary-assistant.vercel.app'
+          : 'https://tessdata.projectnaptha.com/4.0.0_best';
+
         const worker = await createWorker('eng', 1, {
           cachePath: tempCacheDir,
+          langPath,
           logger: () => {},
           errorHandler: (err: any) => console.error('[OcrService Worker Error]', err)
         });
