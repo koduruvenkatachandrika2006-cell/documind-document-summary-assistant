@@ -40,36 +40,25 @@ export class OcrService {
   private async preprocessImage(buffer: Buffer): Promise<Buffer> {
     try {
       const img = await loadImage(buffer);
-      const maxDim = 800; // Optimal resolution for fast single-pass OCR
+      const maxDim = 1200;
       let width = img.width;
       let height = img.height;
 
-      if (width > maxDim || height > maxDim) {
-        if (width > height) {
-          height = Math.round((height * maxDim) / width);
-          width = maxDim;
-        } else {
-          width = Math.round((width * maxDim) / height);
-          height = maxDim;
-        }
+      if (width <= maxDim && height <= maxDim) {
+        return buffer;
+      }
+
+      if (width > height) {
+        height = Math.round((height * maxDim) / width);
+        width = maxDim;
+      } else {
+        width = Math.round((width * maxDim) / height);
+        height = maxDim;
       }
 
       const canvas = createCanvas(width, height);
       const ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0, width, height);
-
-      // Binarization for high contrast & sub-second Tesseract recognition
-      const imgData = ctx.getImageData(0, 0, width, height);
-      const data = imgData.data;
-      for (let i = 0; i < data.length; i += 4) {
-        const gray = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
-        const val = gray > 140 ? 255 : 0;
-        data[i] = val;
-        data[i + 1] = val;
-        data[i + 2] = val;
-      }
-      ctx.putImageData(imgData, 0, 0);
-
       return canvas.toBuffer('image/png');
     } catch (err) {
       console.warn('[OcrService Image Preprocessing Warning]', err);
@@ -145,7 +134,7 @@ export class OcrService {
         });
 
         await worker.setParameters({
-          tessedit_pageseg_mode: '6', // PSM_SINGLE_BLOCK — 4x faster single pass
+          tessedit_pageseg_mode: '3', // PSM_AUTO — Auto layout segmentation
           tessjs_create_pdf: '0',
           tessjs_create_hocr: '0',
           tessjs_create_tsv: '0',
