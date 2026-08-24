@@ -123,8 +123,8 @@ documind/
 ### 1. Clone & Install Dependencies
 
 ```bash
-git clone https://github.com/your-username/document-summary-assistant.git
-cd document-summary-assistant
+git clone https://github.com/koduruvenkatachandrika2006-cell/documind-document-summary-assistant.git
+cd documind-document-summary-assistant
 npm install
 ```
 
